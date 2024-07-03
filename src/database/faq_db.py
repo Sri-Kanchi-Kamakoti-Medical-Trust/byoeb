@@ -21,8 +21,6 @@ class FAQDB(BaseDB):
         )
         self.embedding_fn = embedding_functions.OpenAIEmbeddingFunction(
             api_key=os.environ['OPENAI_API_KEY'].strip(),
-            api_type='azure',
-            api_base=os.environ['OPENAI_API_ENDPOINT'].strip(),
             model_name="text-embedding-ada-002"
         )
 
