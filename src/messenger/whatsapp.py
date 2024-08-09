@@ -137,6 +137,10 @@ class WhatsappMessenger(BaseMessenger):
                         {
                             "type": "reply",
                             "reply": {"id": poll_id + "_NO", "title": "No"},
+                        },
+                        {
+                            "type": "reply",
+                            "reply": {"id": poll_id + "_More Options", "title": "More Options"},
                         }
                     ]
                 },
@@ -177,6 +181,68 @@ class WhatsappMessenger(BaseMessenger):
         )
 
         self.send_reaction(to_number, msg_id, "📝")
+
+        return msg_id
+    
+    def send_more_options(
+        self,
+        to_number: str,
+        text_poll: str = None,
+        list_title: str = None,
+        options: list = None,
+        reply_to_msg_id: str = None,
+    ):
+        
+        if options is None or options == []:
+            return
+        final_options_list = []
+
+        for i, option in enumerate(options):
+            if len(option) > 72:
+                option = option[:69] + "..."
+            final_options_list.append(
+                {"id": "OPTION_" + str(i + 1), "title": " ", "description": option}
+            )
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": to_number,
+            "type": "interactive",
+            "interactive": {
+                "type": "list",
+                "body": {"text": text_poll},
+                "action": {
+                    "button": list_title,
+                    "sections": [
+                        {"title": list_title, "rows": final_options_list},
+                    ],
+                },
+            },
+        }
+        if reply_to_msg_id is not None:
+            payload["context"] = {"message_id": reply_to_msg_id}
+        headers = {
+            "Authorization": "Bearer " + os.environ["WHATSAPP_TOKEN"].strip(),
+            "Content-Type": "application/json",
+        }
+        url = (
+            "https://graph.facebook.com/v17.0/"
+            + os.environ["PHONE_NUMBER_ID"]
+            + "/messages"
+        )
+
+        msg_output = requests.post(url, json=payload, headers=headers)
+        print(msg_output.json())
+        msg_id = msg_output.json()["messages"][0]["id"]
+
+        self.logger.add_log(
+            sender_id="bot",
+            receiver_id=to_number,
+            message_id=msg_id,
+            action_type="send_more_options",
+            details={"text": text_poll, "suggestions": options},
+            timestamp=datetime.now(),
+        )
 
         return msg_id
 

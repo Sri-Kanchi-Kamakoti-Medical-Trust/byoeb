@@ -56,7 +56,7 @@ class KnowledgeBase:
         if self.config["API_ACTIVATED"] is False:
             gpt_output = "API not activated"
             citations = "NA-API"
-            query_type = "small-talk"
+            query_type = "medical"
             return (gpt_output, citations, query_type)
         
 

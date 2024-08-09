@@ -1,6 +1,6 @@
 from typing import Any
 from io import BytesIO
-
+import regex as re
 import os
 from azure_language_tools import translator
 import subprocess
@@ -552,6 +552,12 @@ class WhatsappResponder(BaseResponder):
             and msg_object["interactive"]["button_reply"]["id"][:12] == "POLL_PRIMARY"
         ):
             self.receive_correction_poll_expert(msg_object, row_lt)
+        elif (
+            msg_type == "interactive"
+            and msg_object["interactive"]["type"] == "list_reply"
+            and msg_object["interactive"]["list_reply"]["id"][:7] == "OPTION_"
+        ):
+            self.receive_more_options_response(msg_object, row_lt)
         elif msg_type == "text":
             self.get_correction_from_expert(msg_object, row_lt)
 
@@ -584,7 +590,6 @@ class WhatsappResponder(BaseResponder):
         expert = self.category_to_expert[row_query['query_type']]
         
         receiver = expert_row_lt["whatsapp_id"]
-        forward_to = expert
         
 
         
@@ -804,12 +809,34 @@ class WhatsappResponder(BaseResponder):
 
             for expert in self.config["EXPERTS"]:
                 if expert != expert_row_lt["user_type"]:
-                    options.append(f"Send to {self.category_to_expert[expert]}")
+                    options.append(f"Send to {expert}")
             
             if row_query["message_type"] == "audio":
                 options.append("Get original audio")
             elif row_query["source_language"] != "en":
                 options.append("Get original query")
+
+            more_options_id = self.messenger.send_more_options(
+                msg_object["from"],
+                "Please select an option",
+                "More Options",
+                options,
+                context_id
+            )
+
+            self.bot_conv_db.insert_row(
+                receiver_id=expert_row_lt["user_id"],
+                message_type="more_options",
+                message_id=more_options_id,
+                audio_message_id=None,
+                message_source_lang=options,
+                message_language=expert_row_lt["user_language"],
+                message_english=options,
+                reply_id=context_id,
+                citations=None,
+                message_timestamp=datetime.now(),
+                transaction_message_id=transaction_message_id,
+            )
 
             
 
@@ -965,6 +992,77 @@ class WhatsappResponder(BaseResponder):
         
         return
     
+    def receive_more_options_response(self, msg_object, expert_row_lt):
+
+        msg_body = msg_object["interactive"]["list_reply"]["title"]
+        context_id = msg_object["context"]["id"]
+
+        self.logger.add_log(
+            sender_id=msg_object["from"],
+            receiver_id="bot",
+            message_id=msg_object["id"],
+            action_type="received_more_options",
+            details={"text": msg_body, "reply_to": context_id},
+            timestamp=datetime.now(),
+        )
+
+        poll = self.bot_conv_db.get_from_message_id(context_id)
+
+        if poll is None or poll["message_type"] != "more_options":
+            self.messenger.send_message(
+                msg_object["from"],
+                f"Please reply to the query you want to fix.",
+                msg_object["id"],
+            )
+            return
+        
+        transaction_message_id = poll["transaction_message_id"]
+
+        row_query = self.user_conv_db.get_from_message_id(transaction_message_id)
+        user_row_lt = self.user_db.get_from_user_id(row_query["user_id"])
+
+        if row_query.get("resolved", False):
+            self.messenger.send_message(
+                expert_row_lt['whatsapp_id'],
+                "This query has already been answered.",
+                context_id,
+            )
+            return
+        
+        if expert_row_lt['user_type'] != self.category_to_expert[row_query['query_type']]:
+            self.messenger.send_message(
+                expert_row_lt['whatsapp_id'],
+                f"This query has been forwarded to the {self.category_to_expert[row_query['query_type']]}.",
+                context_id,
+            )
+            return
+
+        if msg_body == "Get original query":
+            if row_query["message_type"] == "text":
+                self.messenger.send_message(
+                    expert_row_lt['whatsapp_id'],
+                    f"*Query*: {row_query['message_source_lang']}",
+                    context_id,
+                )
+        elif msg_body == "Get original audio":
+            connect_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING").strip()
+            blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+            container_name = self.config["AZURE_BLOB_CONTAINER_NAME"].strip()
+
+            blob_client = blob_service_client.get_blob_client(container=container_name, blob=row_query["audio_blob_path"])
+            download_file_path = "original_audio.ogg"
+            with open(download_file_path, "wb") as download_file:
+                download_file.write(blob_client.download_blob().readall())
+            audio_msg_id = self.messenger.send_audio(download_file_path, expert_row_lt)
+        elif re.match(r"Send to *", msg_body):
+            recipient = re.sub(r"Send to *", "", msg_body)
+            expert_type = self.expert_to_category[recipient]
+            row_query["query_type"] = expert_type
+            self.user_conv_db.add_query_type(row_query["message_id"], expert_type)
+            user_row_lt = self.user_db.get_from_user_id(row_query["user_id"])
+            user_secondary_id = self.user_relation_db.find_user_relations(user_row_lt["user_id"], expert_type)['user_id_secondary']
+            expert_row_lt = self.user_db.get_from_user_id(user_secondary_id)
+            self.send_correction_poll_expert(user_row_lt, expert_row_lt, row_query)
 
     def send_query_expert(self, expert_row_lt, query_row):
 
