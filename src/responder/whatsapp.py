@@ -210,6 +210,7 @@ class WhatsappResponder(BaseResponder):
             'ಕನ್ನಡ': 'kn',
             'தமிழ்': 'ta',
             'తెలుగు': 'te',
+            'اردو': 'ur',
         }
         detected_lang = language_parser[msg_object['button']['payload']]
 

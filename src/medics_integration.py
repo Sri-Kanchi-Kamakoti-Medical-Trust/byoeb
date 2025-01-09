@@ -73,7 +73,7 @@ class OnboardMedics:
         )
         patient_user_id = patient_row['user_id']
 
-        onboarding_msg_id = self.messenger.send_template(patient_row['whatsapp_id'], 'onboard_cataractbot', patient_row['user_language'])
+        onboarding_msg_id = self.messenger.send_template(patient_row['whatsapp_id'], 'catbot_consent', patient_row['user_language'])
         lang_poll_msg_id = self.messenger.send_template(patient_row['whatsapp_id'], unit_lang_template, patient_row['user_language'])
 
         self.bot_conv_db.insert_row(

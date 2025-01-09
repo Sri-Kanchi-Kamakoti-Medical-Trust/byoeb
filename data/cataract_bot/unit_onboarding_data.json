@@ -1,7 +1,8 @@
 {
     "UNITS": [
         "SEHBLR",
-        "SEHJAI"
+        "SEHJAI",
+        "SEHHYD"
     ],
     "SEHBLR": {
         "org_id": "BLR",
@@ -12,5 +13,10 @@
         "org_id": "JAI",
         "language": "hi",
         "lang_template_name": "lang_selection_jaipur"
+    },
+    "SEHHYD": {
+        "org_id": "HYD",
+        "language": "en",
+        "lang_template_name": "lang_selection_hyd"
     }
 }
