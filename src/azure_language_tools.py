@@ -20,7 +20,7 @@ class translator:
                 "kn-IN": "kn-IN-GaganNeural",
                 "ta-IN": "ta-IN-ValluvarNeural",
                 "te-IN": "te-IN-MohanNeural",
-                "ur-IN": "ur-IN-AsadNeural",
+                "ur-IN": "ur-IN-SalmanNeural",
             },
             "female": {
                 "en-IN": "en-IN-NeerjaNeural",
@@ -28,7 +28,7 @@ class translator:
                 "kn-IN": "kn-IN-SapnaNeural",
                 "ta-IN": "ta-IN-PallaviNeural",
                 "te-IN": "te-IN-ShrutiNeural",
-                "ur-IN": "ur-IN-HamidNeural",
+                "ur-IN": "ur-IN-GulNeural",
             },
         }
 
