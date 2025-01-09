@@ -243,7 +243,6 @@ class WhatsappResponder(BaseResponder):
             message_timestamp=datetime.now(),
             transaction_message_id=None,
         )
-        self.clear_cache()
         return
 
 
