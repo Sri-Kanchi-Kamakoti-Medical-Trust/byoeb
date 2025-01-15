@@ -1,44 +1,81 @@
-import os
-import yaml
 import datetime
-
 import sys
-sys.path.append(os.environ["APP_PATH"] + "/src")
+import yaml
 
-from conversation_database import LongTermDatabase, LoggingDatabase
-from messenger.whatsapp import WhatsappMessenger
+import os
 
-
-
-with open(os.path.join(os.environ["APP_PATH"], "config.yaml")) as file:
+local_path = os.environ["APP_PATH"]
+with open(local_path + "/config.yaml") as file:
     config = yaml.load(file, Loader=yaml.FullLoader)
 
-template_name="expert_reminder"
-language="en"
+sys.path.append(local_path.strip() + "/src")
+
+NUM_EXPERTS = 1
+from database import UserDB, UserConvDB, BotConvDB, ExpertConvDB, UserRelationDB
 
 
-long_term_db = LongTermDatabase(config)
+from messenger import WhatsappMessenger
+from responder import WhatsappResponder
+from conversation_database import (
+    LoggingDatabase
+)
+import traceback
+
+userdb = UserDB(config)
+user_conv_db = UserConvDB(config)
+bot_conv_db = BotConvDB(config)
+expert_conv_db = ExpertConvDB(config)
+
+
+import pandas as pd
+from tqdm import tqdm
+
 logger = LoggingDatabase(config)
-expert_list = []
-for expert in config["EXPERTS"]:
-    expert_list.append(long_term_db.get_list_of(expert+"_whatsapp_id"))
+responder = WhatsappResponder(config)
 
-messenger = WhatsappMessenger(config, logger)
+to_ts = datetime.datetime.now() - datetime.timedelta(hours=4)
+from_ts = datetime.datetime.now() - datetime.timedelta(hours=12)
+
+list_cursor = user_conv_db.get_all_unresolved(from_ts, to_ts)
 
 
-for whatsapp_id in expert_list:
-    activity = list(logger.collection.find({"sender_id": whatsapp_id}))
-    if len(activity) and (
-        datetime.datetime.now() - activity[-1]["timestamp"]
-    ) > datetime.timedelta(hours=0):
-        continue
+df = pd.DataFrame(list_cursor)
+
+if len(df) == 0:
+    print("No unresolved queries")
+    sys.exit(0)
+
+df = df[df['query_type'] != 'small-talk']
+df.reset_index(drop=True, inplace=True)
+
+def send_reminder(phone_number, body, reply_id):
     try:
-        print("Sending message to ", whatsapp_id)
-        messenger.send_template(
-            whatsapp_id, template_name, language, None
+        responder.messenger.send_message(
+            phone_number,
+            body,
+            reply_id
         )
-    except:
-        continue
+    except Exception as e:
+        print(e)
+        print(traceback.format_exc())
 
-print("Sent reminders to experts")
-
+reminder_message = "Hi, this is a reminder to respond to above query",
+for i, row in tqdm(df.iterrows()):
+    print(row.keys())
+    print(row['message_id'], row['message_english'])
+    bot_message = bot_conv_db.find_with_transaction_id(row['message_id'], 'poll_primary')
+    if not bot_message:
+        message_id = row['message_id']
+        receiver_id = bot_message['receiver_id']
+        expert_data = userdb.get_from_user_id(receiver_id)
+        phone_number = expert_data['phone_number']
+        send_reminder(phone_number, reminder_message, message_id)
+    
+    bot_message = bot_conv_db.find_with_transaction_id(row['message_id'], 'poll_escalated')
+    if not bot_message:
+        message_id = row['message_id']
+        receiver_id = bot_message['receiver_id']
+        expert_data = userdb.get_from_user_id(receiver_id)
+        phone_number = expert_data['phone_number']
+        send_reminder(phone_number, reminder_message, message_id)
+    
