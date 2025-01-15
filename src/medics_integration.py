@@ -33,7 +33,7 @@ class OnboardMedics:
 
     def onboard_medics_helper(self, data):
         print('Medics data received')
-
+        self.user_db.clear_cache()
         unit = data['MRD'].split('/')[0]
 
         assert unit in self.unit_onboarding_data, "Unit not found in unit_onboarding_data"
@@ -145,9 +145,12 @@ class OnboardMedics:
             )
 
         doctor_user_id = doctor_row['user_id']
-                 
+        
+        counsellor_name = data['counsellor_name']
+        if counsellor_name.strip() == '':
+            counsellor_name = self.unit_onboarding_data[unit]['default_counsellor']
 
-        counsellor_row = self.user_db.collection.find_one({'user_name': data['counsellor_name']})
+        counsellor_row = self.user_db.collection.find_one({'user_name': counsellor_name, 'user_type': 'Counsellor'})
         counsellor_user_id = counsellor_row['user_id']
 
         self.user_relations_db.insert_row(
