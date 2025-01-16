@@ -1,7 +1,7 @@
 import datetime
 import sys
 import yaml
-
+import json
 import os
 
 local_path = os.environ["APP_PATH"]
@@ -37,10 +37,12 @@ to_ts = datetime.datetime.now() - datetime.timedelta(hours=4)
 from_ts = datetime.datetime.now() - datetime.timedelta(hours=12)
 
 list_cursor = user_conv_db.get_all_unresolved(from_ts, to_ts)
-
+template_messages = json.load(open(os.path.join(os.environ['DATA_PATH'], "template_messages.json"), "r"))
+reminder_message = template_messages["expert_verification"]["expert"]["expert_reminders"]["en_response"]
+print(reminder_message)
 
 df = pd.DataFrame(list_cursor)
-
+print(df)
 if len(df) == 0:
     print("No unresolved queries")
     sys.exit(0)
@@ -59,7 +61,7 @@ def send_reminder(phone_number, body, reply_id):
         print(e)
         print(traceback.format_exc())
 
-reminder_message = "Hi, this is a reminder to respond to above query",
+
 for i, row in tqdm(df.iterrows()):
     print(row.keys())
     print(row['message_id'], row['message_english'])
