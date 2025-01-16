@@ -45,7 +45,7 @@ def hierarchical_rag_retrieve(query, org_id):
     chunk1 = 0
     chunk2 = 0
     for chunk, chunk_text in enumerate(relevant_chunks["documents"][0]):
-        if relevant_chunks["metadatas"][0][chunk]["source"].strip() == "KB Updated":
+        if "kb_update" in relevant_chunks["metadatas"][0][chunk]["source"].lower():
             relevant_update_chunks_string += (
                 f"Chunk #{chunk2 + 1}\n{chunk_text}\n\n"
             )
