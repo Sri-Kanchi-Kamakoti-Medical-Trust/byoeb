@@ -103,13 +103,16 @@ class OnboardMedics:
             message_timestamp=datetime.now(),
             transaction_message_id=None,
         )
-
+        doctor_name = data['operating_doctor']
         doctor_whatsapp_id = '91'+str(data['operating_doctor_number'])
 
         if doctor_whatsapp_id in self.doctor_alternate_data:
             doctor_whatsapp_id = self.doctor_alternate_data[doctor_whatsapp_id]
-
-        doctor_row = self.user_db.get_from_whatsapp_id(doctor_whatsapp_id)
+            doctor_row = self.user_db.get_from_whatsapp_id(doctor_whatsapp_id)
+            doctor_name = doctor_row['user_name']    
+        else:
+            doctor_row = self.user_db.collection.find_one({'user_name': doctor_name, 'user_type': 'Doctor'})
+        
         if doctor_row is None:
             doctor_row = {
                 'user_id': str(uuid4()),
@@ -117,7 +120,7 @@ class OnboardMedics:
                 'user_language': 'en',
                 'user_type': 'Doctor',
                 'org_id': unit_data['org_id'],
-                'user_name': data['operating_doctor'],
+                'user_name': doctor_name,
             }
             self.user_db.insert_row(
                 user_id=doctor_row['user_id'],
@@ -167,6 +170,3 @@ class OnboardMedics:
 
 if __name__ == "__main__":
     onboard_medics = OnboardMedics()
-    # data = [{"MRD":"SEHBLR/828933/24","name":"Bhuvan","phone_number":"8375066113","surgery_name":"CATARACT","suregery_group_name":"Others","age":23,"gender":"male","procedure_type":"Major Procedure","surgery_date":"10-04-2024","operating_doctor":"MSR","operating_doctor_number":"8904954952","counsellor_name":"MSR counsellor","counsellor_number":""}]
-    # for row in data:
-    #     onboard_medics.onboard_medics_helper(row)

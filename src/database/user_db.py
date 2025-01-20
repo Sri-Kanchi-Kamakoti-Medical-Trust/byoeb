@@ -24,7 +24,7 @@ class UserDB(BaseDB):
 
         user = {
             'user_id': user_id,
-            'whatsapp_id': whatsapp_id,
+            'whatsapp_id': str(whatsapp_id),
             'user_type': user_type,
             'user_language': user_language,
             'org_id': org_id,
@@ -43,6 +43,10 @@ class UserDB(BaseDB):
     @cached(cache)
     def get_from_whatsapp_id(self, whatsapp_id):
         user = self.collection.find_one({'whatsapp_id': whatsapp_id})
+        return user
+    
+    def get_from_user_name(self, user_name):
+        user = self.collection.find_one({'user_name': user_name})
         return user
     
     def update_user_language(self, user_id, user_language):
