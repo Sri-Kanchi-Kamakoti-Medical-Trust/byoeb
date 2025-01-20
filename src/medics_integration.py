@@ -111,7 +111,7 @@ class OnboardMedics:
             doctor_row = self.user_db.get_from_whatsapp_id(doctor_whatsapp_id)
             doctor_name = doctor_row['user_name']    
         else:
-            doctor_row = self.user_db.collection.find_one({'user_name': doctor_name, 'user_type': 'Doctor'})
+            doctor_row = self.user_db.collection.find_one({'user_name': doctor_name, 'user_type': 'Doctor', 'org_id': unit_data['org_id']})
         
         if doctor_row is None:
             doctor_row = {
@@ -153,7 +153,7 @@ class OnboardMedics:
         if counsellor_name.strip() == '':
             counsellor_name = self.unit_onboarding_data[unit]['default_counsellor']
 
-        counsellor_row = self.user_db.collection.find_one({'user_name': counsellor_name, 'user_type': 'Counsellor'})
+        counsellor_row = self.user_db.collection.find_one({'user_name': counsellor_name, 'user_type': 'Counsellor', 'org_id': unit_data['org_id']})
         counsellor_user_id = counsellor_row['user_id']
 
         self.user_relations_db.insert_row(
