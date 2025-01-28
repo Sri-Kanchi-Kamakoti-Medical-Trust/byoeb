@@ -347,9 +347,9 @@ class WhatsappResponder(BaseResponder):
 
     def send_audio_idk_response(self, row_lt, row_query):
         msg_id = row_query['message_id']
-        idk_message_template = self.template_messages["idk"][f"{row_lt['user_language']}_audio"]
+        idk_message_template = self.template_messages["idk"][f"{row_lt['user_language']}"]["audio"]
         idk_message = idk_message_template.replace("<query>", row_query['message_source_lang'])
-        options = self.template_messages["idk"][f"{row_lt['user_language']}_audio_options"]
+        options = self.template_messages["idk"][row_lt['user_language']]["audio_options"]
         sent_msg_id = self.messenger.send_message_with_options(
             row_lt['whatsapp_id'], idk_message, ["Audio_idk_raise", "Audio_idk_reask"], options, msg_id
         )
@@ -370,7 +370,7 @@ class WhatsappResponder(BaseResponder):
         )
 
     def handle_audio_idk_flow(self, msg_obj, row_lt):
-        idk_options = self.template_messages["idk"][f"{row_lt['user_language']}_audio_options"]
+        idk_options = self.template_messages["idk"][f"{row_lt['user_language']}"]["audio_options"]
         msg = msg_obj["interactive"]["button_reply"]["title"]
         if msg in idk_options[0]:
             print("Reply id: ", msg_obj["context"]["id"])
@@ -384,13 +384,13 @@ class WhatsappResponder(BaseResponder):
             expert_row_lt = self.user_db.get_from_user_id(user_secondary_id)
             self.send_correction_poll_expert(row_lt, expert_row_lt, row_query)
         elif msg in idk_options[1]:
-            msg = self.template_messages["idk"][f"{row_lt['user_language']}_audio_reask"]
+            msg = self.template_messages["idk"][f"{row_lt['user_language']}"]["audio_reask"]
             self.messenger.send_message(row_lt['whatsapp_id'], msg)
 
     def send_idk_raise(self, row_lt, row_query, msg_type="text"):
-        raise_message = self.template_messages["idk"][row_lt['user_language']]
+        raise_message = self.template_messages["idk"][row_lt['user_language']]["text"]
         expert_type = self.category_to_expert[row_query["query_type"]]
-        expert_title = self.template_messages["expert_title"][expert_type][row_lt['user_language']]
+        expert_title = self.template_messages["expert_title"][row_lt['user_language']][expert_type]
         raise_message = raise_message.replace("<expert>", expert_title)
         _, list_title, questions_source, _ = self.get_suggested_questions(
             row_lt,
@@ -427,8 +427,8 @@ class WhatsappResponder(BaseResponder):
         return sent_msg_id, audio_msg_id
         
     def handle_small_talk_idk(self, row_lt, row_query):
-        text = self.template_messages["idk"]["en_outofscope_or_smalltalk_text"]
-        final_message = self.template_messages["idk"][f"{row_lt['user_language']}_outofscope_or_smalltalk_text"]
+        text = self.template_messages["idk"]["out_of_scope_or_smalltalk_text"]
+        final_message = self.template_messages["idk"][f"{row_lt['user_language']}"]["out_of_scope_or_smalltalk_text"]
         _, list_title, questions_source, _ = self.get_suggested_questions(
             row_lt,
             row_query,
@@ -560,7 +560,7 @@ class WhatsappResponder(BaseResponder):
                     self.send_audio_idk_response(row_lt, row_query)
                 else:
                     sent_msg_id, audio_msg_id = self.send_idk_raise(row_lt, row_query, msg_type)
-                    raise_message = self.template_messages["idk"][row_lt['user_language']]
+                    raise_message = self.template_messages["idk"][row_lt['user_language']]["text"]
                     self.bot_conv_db.insert_row(
                         receiver_id=row_lt['user_id'],
                         message_type="query_response",
@@ -893,7 +893,7 @@ class WhatsappResponder(BaseResponder):
         if poll is None:
             self.messenger.send_message(
                 msg_object["from"],
-                self.template_messages["expert_verification"]["expert"]["en_notag"],
+                self.template_messages["expert_verification"]["expert"]["en"]["notag"],
                 msg_object["id"],
             )
             return
@@ -953,16 +953,16 @@ class WhatsappResponder(BaseResponder):
         if answer == "Yes":
             self.messenger.send_message(
                 expert_row_lt['whatsapp_id'],
-                self.template_messages["expert_verification"]["expert"]["en_query_yes"],
+                self.template_messages["expert_verification"]["expert"]["en"]["query_yes"],
                 context_id,
             )
 
 
             
             if row_response["message_category"] == "IDK":
-                text = self.template_messages["idk"]["en_expertsaysyes"]
+                text = self.template_messages["idk"]["en"]["expertsaysyes"]
                 text = text.replace("<phone_number>", self.unit_contact["phone_number"][user_row_lt["org_id"]])
-                final_message = self.template_messages["idk"][f"{user_row_lt['user_language']}_expertsaysyes"]
+                final_message = self.template_messages["idk"][f"{user_row_lt['user_language']}"]["expertsaysyes"]
                 final_message = final_message.replace("<phone_number>", self.unit_contact["phone_number"][user_row_lt["org_id"]])
                 # _, list_title, questions_source, _ = self.get_suggested_questions(
                 #     user_row_lt,
@@ -980,10 +980,10 @@ class WhatsappResponder(BaseResponder):
                     self.messenger.send_reaction(
                         user_row_lt['whatsapp_id'], row_response["audio_message_id"], "\u2705"
                     )
-                text = self.template_messages["expert_verification"]["user"]["en_yes"]
+                text = self.template_messages["expert_verification"]["user"]["en"]["yes"]
                 text = text.replace("<expert>", expert_row_lt["user_type"].lower())
-                text_translated = self.template_messages["expert_verification"]["user"][f"{user_row_lt['user_language']}_yes"]
-                expert_title = self.template_messages["expert_title"][expert_row_lt['user_type']][user_row_lt["user_language"]]
+                text_translated = self.template_messages["expert_verification"]["user"][f"{user_row_lt['user_language']}"]["yes"]
+                expert_title = self.template_messages["expert_title"][user_row_lt["user_language"]][expert_row_lt['user_type']]
                 text_translated = text_translated.replace("<expert>", expert_title)
                 sent_msg_id = self.messenger.send_message(
                     user_row_lt["whatsapp_id"],
@@ -1030,10 +1030,10 @@ class WhatsappResponder(BaseResponder):
                     self.messenger.send_reaction(
                         user_row_lt['whatsapp_id'], row_response["audio_message_id"], "\u274C"
                     )
-                text = self.template_messages["expert_verification"]["user"]["en_no"]
+                text = self.template_messages["expert_verification"]["user"]["en"]["no"]
                 text = text.replace("<expert>", expert_row_lt["user_type"].lower())
-                text_translated = self.template_messages["expert_verification"]["user"][f"{user_row_lt['user_language']}_no"]
-                expert_title = self.template_messages["expert_title"][expert_row_lt['user_type']][user_row_lt["user_language"]]
+                text_translated = self.template_messages["expert_verification"]["user"][f"{user_row_lt['user_language']}"]["no"]
+                expert_title = self.template_messages["expert_title"][user_row_lt["user_language"]][expert_row_lt['user_type']]
                 text_translated = text_translated.replace("<expert>", expert_title)
                 self.messenger.send_message(
                     user_row_lt['whatsapp_id'],
@@ -1042,7 +1042,7 @@ class WhatsappResponder(BaseResponder):
                 )
             self.messenger.send_message(
                 expert_row_lt['whatsapp_id'],
-                self.template_messages["expert_verification"]["expert"]["en_query_no"],
+                self.template_messages["expert_verification"]["expert"]["en"]["query_no"],
                 context_id,
             )
 
@@ -1066,7 +1066,7 @@ class WhatsappResponder(BaseResponder):
         if msg_object.get("context", False) == False:
             self.messenger.send_message(
                 expert_row_lt['whatsapp_id'],
-                self.template_messages["expert_verification"]["expert"]["en_notag"],
+                self.template_messages["expert_verification"]["expert"]["en"]["notag"],
                 msg_object["id"],
             )
             return
@@ -1097,7 +1097,7 @@ class WhatsappResponder(BaseResponder):
                 transaction_message_id=poll["transaction_message_id"],
             )
             self.messenger.send_message(
-                msg_object["from"], self.template_messages["expert_verification"]["expert"]["en_query_no_correction"], msg_object["id"]
+                msg_object["from"], self.template_messages["expert_verification"]["expert"]["en"]["query_no_correction"], msg_object["id"]
             )
             return
             
@@ -1106,7 +1106,7 @@ class WhatsappResponder(BaseResponder):
             print(poll)
             self.messenger.send_message(
                 msg_object["from"],
-                self.template_messages["expert_verification"]["expert"]["en_notag"],
+                self.template_messages["expert_verification"]["expert"]["en"]["notag"],
                 msg_object["id"],
             )
             return
@@ -1179,10 +1179,10 @@ class WhatsappResponder(BaseResponder):
             remove_extra_voice_files(
                 corrected_audio_loc, corrected_audio_loc[:-3] + ".aac"
             )
-            verification_text = self.template_messages['verification']['en']
+            verification_text = self.template_messages["expert_verification"]["user"]["en"]["yes"]
             verification_text = verification_text.replace("<expert>", expert_row_lt["user_type"].lower())
-            verification_text_source = self.template_messages['verification'][user_row_lt['user_language']]
-            expert_title = self.template_messages["expert_title"][expert_row_lt['user_type']][user_row_lt["user_language"]]
+            verification_text_source = self.template_messages["expert_verification"]["user"][user_row_lt["user_language"]]["yes"]
+            expert_title = self.template_messages["expert_title"][user_row_lt["user_language"]][expert_row_lt['user_type']]
             verification_text_source = verification_text_source.replace("<expert>", expert_title)
             gpt_output_source = self.azure_translate.translate_text(
                 gpt_output, "en", user_row_lt['user_language'], self.logger
@@ -1223,10 +1223,10 @@ class WhatsappResponder(BaseResponder):
                 user_row_lt['whatsapp_id'], updated_audio_msg_id, "\u2705"
             )
         else:
-            verification_text = self.template_messages["expert_verification"]["user"]["en_yes"]
+            verification_text = self.template_messages["expert_verification"]["user"]["en"]["yes"]
             verification_text = verification_text.replace("<expert>", expert_row_lt["user_type"].lower())
-            verification_text_source = self.template_messages["expert_verification"]["user"][f"{user_row_lt['user_language']}_yes"]
-            expert_title = self.template_messages["expert_title"][expert_row_lt["user_type"]][user_row_lt["user_language"]]
+            verification_text_source = self.template_messages["expert_verification"]["user"][f"{user_row_lt['user_language']}"]["yes"]
+            expert_title = self.template_messages["expert_title"][user_row_lt["user_language"]][expert_row_lt["user_type"]]
             verification_text_source = verification_text_source.replace("<expert>", expert_title)
             gpt_output_source = self.azure_translate.translate_text(
                 gpt_output, "en", user_row_lt['user_language'], self.logger
@@ -1258,7 +1258,7 @@ class WhatsappResponder(BaseResponder):
         
 
         self.messenger.send_message(
-            msg_object["from"], self.template_messages["expert_verification"]["expert"]["en_query_no_correction"], msg_object["id"]
+            msg_object["from"], self.template_messages["expert_verification"]["expert"]["en"]["query_no_correction"], msg_object["id"]
         )
         self.user_conv_db.mark_resolved(row_query['_id'])
         
