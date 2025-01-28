@@ -63,7 +63,7 @@ class WhatsappMessenger(BaseMessenger):
         }
 
         url = (
-            "https://graph.facebook.com/v12.0/"
+            "https://graph.facebook.com/v21.0/"
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
@@ -120,7 +120,7 @@ class WhatsappMessenger(BaseMessenger):
         }
 
         url = (
-            "https://graph.facebook.com/v17.0/"
+            "https://graph.facebook.com/v21.0/"
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
@@ -158,7 +158,7 @@ class WhatsappMessenger(BaseMessenger):
             "Content-Type": "application/json",
         }
         url = (
-            "https://graph.facebook.com/v17.0/"
+            "https://graph.facebook.com/v21.0/"
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
@@ -217,7 +217,7 @@ class WhatsappMessenger(BaseMessenger):
             "Content-Type": "application/json",
         }
         url = (
-            "https://graph.facebook.com/v17.0/"
+            "https://graph.facebook.com/v21.0/"
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
@@ -283,7 +283,7 @@ class WhatsappMessenger(BaseMessenger):
             "Content-Type": "application/json",
         }
         url = (
-            "https://graph.facebook.com/v17.0/"
+            "https://graph.facebook.com/v21.0/"
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
@@ -348,7 +348,7 @@ class WhatsappMessenger(BaseMessenger):
             "Content-Type": "application/json",
         }
         url = (
-            "https://graph.facebook.com/v17.0/"
+            "https://graph.facebook.com/v21.0/"
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
@@ -414,7 +414,7 @@ class WhatsappMessenger(BaseMessenger):
         }
 
         url = (
-            "https://graph.facebook.com/v17.0/"
+            "https://graph.facebook.com/v21.0/"
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
@@ -441,7 +441,7 @@ class WhatsappMessenger(BaseMessenger):
     ) -> str:
         audio_id = msg_object["audio"]["id"]
 
-        url = f"https://graph.facebook.com/v17.0/{audio_id}/"
+        url = f"https://graph.facebook.com/v21.0/{audio_id}/"
 
         headers = {"Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN'].strip()}"}
 
@@ -468,7 +468,7 @@ class WhatsappMessenger(BaseMessenger):
         reply_to_msg_id: str = None,
     ) -> str:
         url = (
-            "https://graph.facebook.com/v15.0/"
+            "https://graph.facebook.com/v21.0/"
             + os.environ["PHONE_NUMBER_ID"]
             + "/media"
         )
@@ -508,7 +508,7 @@ class WhatsappMessenger(BaseMessenger):
             "Content-Type": "application/json",
         }
         url = (
-            "https://graph.facebook.com/v17.0/"
+            "https://graph.facebook.com/v21.0/"
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
