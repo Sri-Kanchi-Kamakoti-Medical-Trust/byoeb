@@ -39,7 +39,7 @@ class UserDB(BaseDB):
     def get_from_user_id(self, user_id):
         user = self.collection.find_one({'user_id': user_id})
         return user
-    
+
     @cached(cache)
     def get_from_whatsapp_id(self, whatsapp_id):
         user = self.collection.find_one({'whatsapp_id': whatsapp_id})
@@ -77,6 +77,25 @@ class UserDB(BaseDB):
     def get_related_qns(self, user_id):
         user = self.collection.find_one({'user_id': user_id})
         return user.get('related_qns', [])
+    
+    def update_activity_timestamp(self, row):
+        self.collection.update_one(
+            {'_id': row["_id"]},
+            {'$set': {
+                'activity_timestamp': int(datetime.datetime.now().timestamp())
+            }}
+        )
+        print(cache.keys())
+        try:
+            for key in cache.keys():
+                if row['user_id'] in str(key):
+                    print("invalidating cache with user_id")
+                    cache.pop(key)
+                if row['whatsapp_id'] in str(key):
+                    print("invalidating cache with whatsapp_id")
+                    cache.pop(key)
+        except Exception as e:
+            return
 
     def clear_cache(self):
         cache.clear()
