@@ -238,3 +238,16 @@ def is_older_than_n_minutes(unix_timestamp, n):
     
     # Check if the difference is greater than 120 seconds (2 minutes)
     return time_difference > diff_seconds
+
+def is_activity_older_than_24_hours(activity_time):
+    if activity_time is None:
+        return True
+    
+    # Get the current time in Unix timestamp format
+    current_time = int(datetime.datetime.now().timestamp())
+    
+    # Calculate the difference
+    time_difference = current_time - int(activity_time)
+    
+    # Check if the difference is greater than 24 hours
+    return time_difference > 86400
