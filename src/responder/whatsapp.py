@@ -826,11 +826,13 @@ class WhatsappResponder(BaseResponder):
         receiver = expert_row_lt["whatsapp_id"]
         forward_to = expert
         try:
+            patient_id = row_lt.get("patient_id", None)
+            patient_id = f" {patient_id}" if patient_id is not None else ""
             gender = row_lt.get('patient_gender', None)
             gender = gender[0].upper() if gender is not None else "NA"
             surgery_date = row_lt.get("patient_surgery_date", None)
-            surgery_date_str = f" *Surgery Date*: {surgery_date}*" if surgery_date is not None else ""
-            patient_details = f"*Patient*: {row_lt['patient_name']} {row_lt['patient_age']}/{gender}{surgery_date_str}"
+            surgery_date_str = f" *Surgery Date*: {surgery_date}" if surgery_date is not None else ""
+            patient_details = f"*Patient*:{patient_id} {row_lt['patient_name']} {row_lt['patient_age']}/{gender}{surgery_date_str}"
         except:
             patient_details= ""
 
@@ -841,6 +843,7 @@ class WhatsappResponder(BaseResponder):
                     receiver, poll_text, poll_id="POLL_PRIMARY"
                 )
         else:
+            poll_text = f'*Query*: "{row_query["message_english"]}" \n*Bot\'s Response*: {row_bot_conv["message_english"].strip()} \n{patient_details}\n{poll_string}'
             message_id = self.messenger.send_template(
                 receiver,
                 "correction_poll",
