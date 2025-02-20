@@ -171,3 +171,5 @@ openssl-1.1.1u/*
 templates.json
 medics_test.py
 register_template.py
+
+scratch/

@@ -100,4 +100,7 @@ class UserDB(BaseDB):
     def clear_cache(self):
         cache.clear()
 
+    def get_all_users(self):
+        users = list(self.collection.find())
+        return users
     
