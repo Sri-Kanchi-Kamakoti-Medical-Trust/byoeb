@@ -73,6 +73,7 @@ class WhatsappResponder(BaseResponder):
         row = self.user_db.get_from_whatsapp_id(from_number)
 
         if row:
+            self.user_db.update_activity_timestamp(row)
             return row["user_type"], row
             
         return None, None
@@ -576,6 +577,7 @@ class WhatsappResponder(BaseResponder):
                         transaction_message_id=msg_id,
                     )
                     query_type = row_query["query_type"]
+                    print("Query type: ", query_type)
                     expert_type = self.category_to_expert[query_type]
                     user_secondary_id = self.user_relation_db.find_user_relations(row_lt['user_id'], expert_type)['user_id_secondary']
                     expert_row_lt = self.user_db.get_from_user_id(user_secondary_id)
@@ -782,6 +784,7 @@ class WhatsappResponder(BaseResponder):
 
     def handle_response_expert(self, msg_object, row_lt):
         msg_type = msg_object["type"]
+        print(msg_type)
 
         if (
             msg_type == "interactive"
@@ -823,28 +826,30 @@ class WhatsappResponder(BaseResponder):
         receiver = expert_row_lt["whatsapp_id"]
         forward_to = expert
         try:
+            patient_id = row_lt.get("patient_id", None)
+            patient_id = f" {patient_id}" if patient_id is not None else ""
             gender = row_lt.get('patient_gender', None)
             gender = gender[0].upper() if gender is not None else "NA"
             surgery_date = row_lt.get("patient_surgery_date", None)
-            surgery_date_str = f" *Surgery Date*: {surgery_date}*" if surgery_date is not None else ""
-            patient_details = f"*Patient*: {row_lt['patient_name']} {row_lt['patient_age']}/{gender}{surgery_date_str}"
+            surgery_date_str = f" *Surgery Date*: {surgery_date}" if surgery_date is not None else ""
+            patient_details = f"*Patient*:{patient_id} {row_lt['patient_name']} {row_lt['patient_age']}/{gender}{surgery_date_str}"
         except:
             patient_details= ""
 
         # citation_str = f"*Citations*: {final_citations.strip()}. \n"
-
-        poll_text = f'*Query*: "{row_query["message_english"]}" \n*Bot\'s Response*: {row_bot_conv["message_english"].strip()} \n{patient_details}\n{poll_string}'
-        message_id = self.messenger.send_poll(
-                receiver, poll_text, poll_id="POLL_PRIMARY"
-            )
-        if message_id == "Error in sending poll":
+        if not utils.is_activity_older_than_24_hours(expert_row_lt.get("activity_timestamp", None)):
+            poll_text = f'*Query*: "{row_query["message_english"]}" \n*Bot\'s Response*: {row_bot_conv["message_english"].strip()} \n{patient_details}\n{poll_string}'
+            message_id = self.messenger.send_poll(
+                    receiver, poll_text, poll_id="POLL_PRIMARY"
+                )
+        else:
+            poll_text = f'*Query*: "{row_query["message_english"]}" \n*Bot\'s Response*: {row_bot_conv["message_english"].strip()} \n{patient_details}\n{poll_string}'
             message_id = self.messenger.send_template(
                 receiver,
                 "correction_poll",
                 expert_row_lt["user_language"],
                 [row_query["message_english"], row_bot_conv["message_english"].strip(), patient_details]
             )
-  
         self.bot_conv_db.insert_row(
             receiver_id=expert_row_lt["user_id"],
             message_type=f"poll_{'escalated' if escalation else 'primary'}",
