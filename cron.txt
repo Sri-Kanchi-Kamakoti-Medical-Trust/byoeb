@@ -1,2 +1,2 @@
 30 * * * * python3 $APP_PATH/cron_jobs/escalate.py
-0 12,16,20 * * * python3 $APP_PATH/cron_jobs/expert_reminder.py
+00 11 * * * python3 $APP_PATH/cron_jobs/onboard_users.py 
