@@ -20,24 +20,28 @@ user_db = UserDB(config)
 user_relation_db = UserRelationDB(config)
 
 print(config["COSMOS_DB_NAME"])
-user_whatsapp_id = '918837701828'
-# user_language = 'en'
+user_whatsapp_id = '919876543210'
+user_language = 'en'
 user_type = 'Patient'
 
-expert_whatsapp_id = '918904954952'
+expert_whatsapp_id = '919876543210'
 expert_language = 'en'
-expert_type = 'Counsellor'
+expert_type = 'Doctor'
 
 #assign user_id and expert_id, use uuid
 
 from uuid import uuid4
 
-# user_id = str(uuid4())
 
-# print(user_db.get_from_whatsapp_id(user_whatsapp_id))
-# user_db.insert_row(user_id, user_whatsapp_id, user_type, user_language)
 
 user_row = user_db.get_from_whatsapp_id(user_whatsapp_id)
+if user_row is None:
+    user_id = str(uuid4())
+    user_db.insert_row(user_id, user_whatsapp_id, user_type, user_language)
+else:
+    user_id = user_row['user_id']
+
+
 expert_row = user_db.collection.find_one({'$and': [{'whatsapp_id': expert_whatsapp_id}, {'user_type': expert_type}]})
 print(expert_row)
 if expert_row is None:
@@ -46,4 +50,8 @@ if expert_row is None:
 else:
     expert_id = expert_row['user_id']
 
-user_relation_db.insert_row(user_row['user_id'], expert_id, user_type, expert_type)
+user_relation_db.insert_row(user_id, expert_id, user_type, expert_type)
+
+hyd_users = user_db.collection.find({'org_id': 'HYD'})
+hyd_users = list(hyd_users)
+print(hyd_users)

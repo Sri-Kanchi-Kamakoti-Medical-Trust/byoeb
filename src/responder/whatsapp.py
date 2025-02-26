@@ -19,6 +19,7 @@ from utils import remove_extra_voice_files
 from onboard import onboard_wa_helper
 from responder.base import BaseResponder
 from azure.identity import DefaultAzureCredential
+from pre_verified import PreverifiedClient
 
 IDK = "I do not know the answer to your question"
 
@@ -32,7 +33,11 @@ class WhatsappResponder(BaseResponder):
 
         self.user_db = UserDB(config)
         self.user_relation_db = UserRelationDB(config)
-        self.faq_db = FAQDB(config)
+        self.preverified_client = PreverifiedClient(
+            os.environ["AZURE_SEARCH_ENDPOINT"],
+            os.environ["AZURE_SEARCH_INDEX_NAME"]
+        )
+        # self.faq_db = FAQDB(config)
 
         self.user_conv_db = UserConvDB(config)
         self.bot_conv_db = BotConvDB(config)
@@ -499,6 +504,136 @@ class WhatsappResponder(BaseResponder):
             utils.remove_extra_voice_files(audio_input_file, audio_output_file)
 
         return sent_msg_id, audio_msg_id, response_source
+    
+    def send_preverified_response(self, msg_id, pre_verified_response, row_lt):
+        message = f'''We have a similar QA pair.\nQuestion: {pre_verified_response['question']}\nAnswer: {pre_verified_response['metadata']['answer']}\nDoes this satisfy your question?'''
+        message_src = self.azure_translate.translate_text(
+            message, "en", row_lt['user_language'], self.logger
+        )
+        options = ["Yes", "No"]
+        options_src = [self.azure_translate.translate_text(option, "en", row_lt['user_language'], self.logger) for option in options]
+        option_ids = ["PREVERIFIED_YES", "PREVERIFIED_NO"]
+        sent_msg_id = self.messenger.send_message_with_options(
+            row_lt['whatsapp_id'], message_src, option_ids, options_src, msg_id
+        )
+        # return sent_msg_id
+        self.bot_conv_db.insert_row(
+            receiver_id=row_lt['user_id'],
+            message_type="preverified_response",
+            message_id=sent_msg_id,
+            audio_message_id=None,
+            message_source_lang=message_src,
+            message_language=row_lt['user_language'],
+            message_english=message,
+            reply_id=msg_id,
+            citations="preverified",
+            message_timestamp=datetime.now(),
+            transaction_message_id=msg_id,
+        )
+        return
+
+
+    def handle_preverified_response(self, msg_object, row_lt):
+        msg_id = msg_object["id"]
+        reply_id = msg_object["context"]["id"]
+        bot_response = self.bot_conv_db.get_from_message_id(reply_id)
+        row_query = self.user_conv_db.get_from_message_id(bot_response["transaction_message_id"])
+
+        if msg_object["interactive"]["button_reply"]["id"] == "PREVERIFIED_YES":
+            text = "Thank you for your response."
+            text_src = self.azure_translate.translate_text(
+                text, "en", row_lt['user_language'], self.logger
+            )
+            self.user_conv_db.mark_resolved(row_query["_id"])
+            self.messenger.send_message(row_lt['whatsapp_id'], text_src, reply_to_msg_id=msg_id)
+        elif msg_object["interactive"]["button_reply"]["id"] == "PREVERIFIED_NO":
+            if row_query.get("resolved", False):
+                return
+            self.generate_and_send_response(row_query, row_lt)
+        
+        return
+    
+    def generate_and_send_response(self, row_query, row_lt):
+        response, citations, query_type = self.knowledge_base.hierarchical_rag_answer_query(
+            self.user_conv_db, row_query['message_id'], self.logger, row_lt['org_id']
+        )
+
+        citations = "".join(citations)
+        citations_str = citations
+        row_query['query_type'] = query_type
+
+        self.user_conv_db.add_query_type(
+            message_id=row_query['message_id'],
+            query_type=query_type
+        )
+
+        if response.strip().startswith(IDK):
+            if query_type == "small-talk":
+                self.handle_small_talk_idk(row_lt, row_query)
+                return
+            else:
+                if row_query['message_type'] == "audio":
+                    self.user_conv_db.add_query_type(
+                    message_id=row_query['message_id'],
+                    query_type=query_type
+                    )
+                    self.send_audio_idk_response(row_lt, row_query)
+                else:
+                    sent_msg_id, audio_msg_id = self.send_idk_raise(row_lt, row_query, row_query['message_type'])
+                    raise_message = self.template_messages["idk"][row_lt['user_language']]["text"]
+                    self.bot_conv_db.insert_row(
+                    receiver_id=row_lt['user_id'],
+                    message_type="query_response",
+                    message_category="IDK",
+                    message_id=sent_msg_id,
+                    audio_message_id=audio_msg_id,
+                    message_source_lang=raise_message,
+                    message_language=row_lt['user_language'],
+                    message_english=IDK,
+                    reply_id=row_query['message_id'],
+                    citations=None,
+                    message_timestamp=datetime.now(),
+                    transaction_message_id=row_query['message_id'],
+                    )
+                    expert_type = self.category_to_expert[query_type]
+                    user_secondary_id = self.user_relation_db.find_user_relations(row_lt['user_id'], expert_type)['user_id_secondary']
+                    expert_row_lt = self.user_db.get_from_user_id(user_secondary_id)
+                    self.send_correction_poll_expert(row_lt, expert_row_lt, row_query)
+
+                return
+
+        if self.config['SUGGEST_NEXT_QUESTIONS']:
+            sent_msg_id, audio_msg_id, response_source = self.send_query_response_and_follow_up(row_query['message_type'], row_query['message_id'], response, row_lt, row_query)
+        else:
+            sent_msg_id, audio_msg_id, response_source = self.send_query_response(row_query['message_type'], row_query['message_id'], response, row_lt)
+
+        self.bot_conv_db.insert_row(
+            receiver_id=row_lt['user_id'],
+            message_type="query_response",
+            message_id=sent_msg_id,
+            audio_message_id=audio_msg_id,
+            message_source_lang=response_source,
+            message_language=row_lt['user_language'],
+            message_english=response,
+            reply_id=row_query['message_id'],
+            citations=citations_str,
+            message_timestamp=datetime.now(),
+            transaction_message_id=row_query['message_id'],
+        )
+
+        if (
+            self.config["SEND_POLL"]
+            and query_type != "small-talk"
+        ):
+            self.messenger.send_reaction(row_lt['whatsapp_id'], sent_msg_id, "\u2753")
+            if row_query['message_type'] == "audio":
+                self.messenger.send_reaction(row_lt['whatsapp_id'], audio_msg_id, "\u2753")
+            expert_type = self.category_to_expert[query_type]
+            user_secondary_id = self.user_relation_db.find_user_relations(row_lt['user_id'], expert_type)['user_id_secondary']
+            expert_row_lt = self.user_db.get_from_user_id(user_secondary_id)
+            self.send_correction_poll_expert(row_lt, expert_row_lt, row_query)
+
+        return
 
     def answer_query_text(self, msg_id, message, translated_message, msg_type, row_lt, blob_name=None):
         print("Answering query")
@@ -525,104 +660,18 @@ class WhatsappResponder(BaseResponder):
             'message_timestamp': datetime.now()
         }
 
-        response = None
-        response_from_faq = True
-        org_id = row_lt['org_id']
-        if self.config['FAQ']:
-            response, citations, query_type = self.faq_db.answer_query_faq(
-                self.user_conv_db, db_id, org_id, self.logger
+        
+        if self.config['PREVERIFIED']:
+            pre_verified_response = self.preverified_client.find_closest_preverified_pair(
+                query=message,
+                org_id=row_lt['org_id']
             )
-
-        if response is None:
-            response_from_faq = False
-            response, citations, query_type = self.knowledge_base.hierarchical_rag_answer_query(
-            self.user_conv_db, msg_id, self.logger, org_id
-            )
-
-        citations = "".join(citations)
-        citations_str = citations
-        row_query['query_type'] = query_type
-
-        self.user_conv_db.add_query_type(
-            message_id=msg_id,
-            query_type=query_type
-        )
-        
-        if response.strip().startswith(IDK):
-            if query_type == "small-talk":
-                self.handle_small_talk_idk(row_lt, row_query)
+            print(pre_verified_response)
+            if pre_verified_response is not None:
+                self.send_preverified_response(msg_id, pre_verified_response, row_lt)
                 return
-            else:
-                if msg_type == "audio":
-                    self.user_conv_db.add_query_type(
-                        message_id=msg_id,
-                        query_type=query_type
-                    )
-                    self.send_audio_idk_response(row_lt, row_query)
-                else:
-                    sent_msg_id, audio_msg_id = self.send_idk_raise(row_lt, row_query, msg_type)
-                    raise_message = self.template_messages["idk"][row_lt['user_language']]["text"]
-                    self.bot_conv_db.insert_row(
-                        receiver_id=row_lt['user_id'],
-                        message_type="query_response",
-                        message_category="IDK",
-                        message_id=sent_msg_id,
-                        audio_message_id=audio_msg_id,
-                        message_source_lang=raise_message,
-                        message_language=row_lt['user_language'],
-                        message_english=IDK,
-                        reply_id=msg_id,
-                        citations=None,
-                        message_timestamp=datetime.now(),
-                        transaction_message_id=msg_id,
-                    )
-                    query_type = row_query["query_type"]
-                    print("Query type: ", query_type)
-                    expert_type = self.category_to_expert[query_type]
-                    user_secondary_id = self.user_relation_db.find_user_relations(row_lt['user_id'], expert_type)['user_id_secondary']
-                    expert_row_lt = self.user_db.get_from_user_id(user_secondary_id)
-                    self.send_correction_poll_expert(row_lt, expert_row_lt, row_query)
 
-                return
-        
-        print("Response: ", response)
-        if self.config['SUGGEST_NEXT_QUESTIONS']:
-            sent_msg_id, audio_msg_id, response_source = self.send_query_response_and_follow_up(msg_type, msg_id, response, row_lt, row_query)
-        else:
-            sent_msg_id, audio_msg_id, response_source = self.send_query_response(msg_type, msg_id, response, row_lt)
-
-        self.bot_conv_db.insert_row(
-            receiver_id=row_lt['user_id'],
-            message_type="query_response",
-            message_id=sent_msg_id,
-            audio_message_id=audio_msg_id,
-            message_source_lang=response_source,
-            message_language=row_lt['user_language'],
-            message_english=response,
-            reply_id=msg_id,
-            citations=citations_str,
-            message_timestamp=datetime.now(),
-            transaction_message_id=msg_id,
-        )
-
-        if (
-            self.config["SEND_POLL"]
-            and query_type != "small-talk"
-        ):
-            self.messenger.send_reaction(row_lt['whatsapp_id'], sent_msg_id, "\u2753")
-            if msg_type == "audio":
-                self.messenger.send_reaction(row_lt['whatsapp_id'], audio_msg_id, "\u2753")
-            query_type = row_query["query_type"]
-            expert_type = self.category_to_expert[query_type]
-            user_secondary_id = self.user_relation_db.find_user_relations(row_lt['user_id'], expert_type)['user_id_secondary']
-            expert_row_lt = self.user_db.get_from_user_id(user_secondary_id)
-            self.send_correction_poll_expert(row_lt, expert_row_lt, row_query)
-        
-        
-        # if self.config["SUGGEST_NEXT_QUESTIONS"]:
-        #     print("Sending suggestions")
-        #     self.send_suggestions(row_lt, row_query, response)
-
+        self.generate_and_send_response(row_query, row_lt)
         return
 
     def get_suggested_questions(self, row_lt, row_query, gpt_output):
@@ -708,6 +757,14 @@ class WhatsappResponder(BaseResponder):
             and "Audio_idk" in msg_object["interactive"]["button_reply"]["id"]
         ):
             self.handle_audio_idk_flow(msg_object, row_lt)
+            return
+        
+        if (
+            msg_object["type"] == "interactive"
+            and msg_object["interactive"]["type"] == "button_reply"
+            and "PREVERIFIED" in msg_object["interactive"]["button_reply"]["id"]
+        ):
+            self.handle_preverified_response(msg_object, row_lt)
             return
 
         if msg_object.get("text") or (

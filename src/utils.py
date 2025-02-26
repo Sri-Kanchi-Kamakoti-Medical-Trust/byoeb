@@ -34,11 +34,9 @@ def get_llm_response(prompt, schema=None):
     api_key = None
     model_engine = os.environ["OPENAI_API_MODEL"].strip()
     response_format = None
-    print(response_format)
     if schema is not None:
         response_format= { "type": "json_schema", "json_schema": schema }
     
-    print("Response format: ", response_format)
     try:
         api_key = os.environ["OPENAI_API_KEY"].strip()
     except KeyError:
