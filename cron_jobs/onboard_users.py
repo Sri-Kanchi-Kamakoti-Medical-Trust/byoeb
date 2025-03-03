@@ -74,18 +74,8 @@ df['surgery_date'] = df['surgery_date'].apply(lambda x: x + pd.DateOffset(days=1
 
 df['ts'] = df['RowKey'].apply(lambda x: timestamps[x])
 df['ts'] = pd.to_datetime(df['ts'])
-
-
-# print the latest date in the df
-# print(df['ts'].max())
-
-#sort by ts
 df = df.sort_values(by='ts', ascending=False)
 
-# print(df.dtypes)
-# df['ts'] = pd.to_datetime(df['ts'], utc=True)
-# df['ts'] = df['ts'].dt.tz_convert(None)  # Convert to naive datetime
-# df = df[df['ts'] > (pd.to_datetime(datetime.now()) - pd.DateOffset(weeks=2))]
 
 print(df.columns)
 
@@ -93,9 +83,13 @@ blr_df = df[df['MRD'].str.contains('BLR')]
 hyd_df = df[df['MRD'].str.contains('HYD')]
 jai_df = df[df['MRD'].str.contains('JAI')]
 
-print(jai_df['operating_doctor'].value_counts().head(20))
+#retain last 2 weeks data
+df['ts'] = pd.to_datetime(df['ts'], utc=True)
+df['ts'] = df['ts'].dt.tz_convert(None)  # Convert to naive datetime
+df = df[df['ts'] > (pd.to_datetime(datetime.now()) - pd.DateOffset(weeks=2))]
+print(df['ts'].min())
 
-doctors_for_onboarding = ['Umesh', 'Anand Balasubramaniam', 'LOHITHASHWA G N', 'Sowmya R', 'Vidhya C', 'Venkata Prabhalar Guduru', 'Macwana Palak Niranjan', 'M P Deepika', 'Polkampally Sirisha', 'Balam Pradeep', 'Neeraj Shah', 'Jaswant Singh', 'Amit Mohan', 'Visweswaran S', 'Surabhi Khandelwal']
+doctors_for_onboarding = ['Umesh', 'Anand Balasubramaniam', 'Sowmya R', 'Vidhya C', 'Venkata Prabhalar Guduru', 'Macwana Palak Niranjan', 'M P Deepika', 'Polkampally Sirisha', 'Balam Pradeep', 'Neeraj Shah', 'Jaswant Singh', 'Amit Mohan', 'Visweswaran S', 'Surabhi Khandelwal']
 
 # print(blr_df['operating_doctor'].value_counts())
 

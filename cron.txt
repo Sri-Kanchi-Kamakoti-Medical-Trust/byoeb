@@ -1,2 +1,2 @@
 30 * * * * python3 $APP_PATH/cron_jobs/escalate.py
-00 11 * * * python3 $APP_PATH/cron_jobs/onboard_users.py 
+00 11,17 * * * python3 $APP_PATH/cron_jobs/onboard_users.py 
