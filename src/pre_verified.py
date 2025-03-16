@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from azure.search.documents import SearchClient
 from utils import get_client_with_key
@@ -67,7 +68,7 @@ class PreverifiedClient:
             })
         self.client.upload_documents(documents=documents)
 
-    def hybrid_search(self, query, org_id, k=20):
+    def hybrid_search(self, query, org_id, k=10):
         vector_query = VectorizableTextQuery(
             text=query,
             k_nearest_neighbors=k,
@@ -81,7 +82,7 @@ class PreverifiedClient:
         )
         return [doc for doc in result]
     
-    def lexical_search(self, query, org_id, k=20):
+    def lexical_search(self, query, org_id, k=10):
         result = self.client.search(
             search_text=query,
             filter="org_id eq 'Generic' or org_id eq '{}'".format(org_id),
@@ -104,16 +105,16 @@ class PreverifiedClient:
         )
         return [doc for doc in result]
     
-    def rerank(self, query, results):
-        system_prompt = self.llm_prompts['preverified_rerank']
-        input_dict = {
-            "user_q": query,
-        }
-        for i in range(len(results)):
-            input_dict[f"qa_{i+1}"] = results[i]['question']
-        query_prompt = f"""
-        {input_dict}
+    def filter_questions(self, query, results):
+        filtered_results = []
+        system_prompt = self.llm_prompts['preverified_filter']
+        query_prompt = f"""<query_en_addcontext>{query}</query_en_addcontext>\n  
+            <n>{len(results)}</n>\n 
         """
+        for i, result in enumerate(results):
+            query = result['question']
+            query_prompt += f"""<question_{i+1}>{query}</question_{i+1}>\n"""
+        
         prompt = [
             {
                 "role": "system",
@@ -125,24 +126,60 @@ class PreverifiedClient:
             }
         ]
         response = get_llm_response(prompt)
-        response = json.loads(response)
+        pattern = re.compile(r"<query_(\d+)_binary>(YES|NO)</query_\d+_binary>")
+        matches = pattern.findall(response)
+        for match in matches:
+            response_id = int(match[0])
+            binary = match[1]
+            if binary == "YES":
+                filtered_results.append(results[response_id - 1])
+        
+        return filtered_results
+    
+
+    
+    def rerank(self, query, results):
+        system_prompt = self.llm_prompts['preverified_rerank']
+        query_prompt = f"""<query_en_addcontext>{query}</query_en_addcontext>\n  
+            <n>{len(results)}</n>\n 
+        """
+        for i, result in enumerate(results):
+            response = result['metadata']['answer']
+            query_prompt += f"""<response_{i+1}>{response}</response_{i+1}>\n"""
+        
+        prompt = [
+            {
+                "role": "system",
+                "content": system_prompt
+            },
+            {
+                "role": "user",
+                "content": query_prompt
+            }
+        ]
+        response = get_llm_response(prompt)
+        rankings = {}
+        pattern = re.compile(r"<response_(\d+)_rank>(\d+)</response_\d+_rank>")
+        matches = pattern.findall(response)
+        
+        for match in matches:
+            response_id = int(match[0])
+            rank = int(match[1])
+            rankings[response_id] = rank
+        
         reranked_results = []
-        question_to_rank = {}
-        for key in response['ranking']:
-            rank = int(key.split('_')[-1])
-            question = response['ranking'][key]
-            question_to_rank[question] = rank
-
-        for result in results:
-            question = result['question']
-            if question in question_to_rank:
-                reranked_results.append((question_to_rank[question], result))
-
+        for i, result in enumerate(results):
+            response_id = i + 1
+            if response_id in rankings:
+                reranked_results.append((rankings[response_id], result))
+        # Sort by rank
         reranked_results.sort(key=lambda x: x[0])
+        # Return the sorted results
         return [result[1] for result in reranked_results]
 
     def find_closest_preverified_pair(self, query, org_id):
         preverified_pairs_top_k = self.hybrid_search(query, org_id)
+        preverified_pairs_top_k = self.filter_questions(query, preverified_pairs_top_k)
         preverified_pairs_reraanked = self.rerank(query, preverified_pairs_top_k)
         return preverified_pairs_reraanked[0] if preverified_pairs_reraanked else None
 

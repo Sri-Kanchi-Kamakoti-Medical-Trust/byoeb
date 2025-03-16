@@ -65,7 +65,7 @@ def get_llm_response(prompt, schema=None):
                 i = i * 2
             else:
                 i = 1
-    print("Respnse: ", response)
+    # print("Respnse: ", response)
     response_text = response.choices[0].message.content.strip()
     return response_text
 
