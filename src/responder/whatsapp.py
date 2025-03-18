@@ -327,27 +327,26 @@ class WhatsappResponder(BaseResponder):
             row_lt['whatsapp_id'], response_source, msg_id
         )
         if msg_type == "audio":
-            audio_input_file = "test_audio_input.aac"
-            audio_output_file = "test_audio_output.aac"
+            audio_output_file = "test_audio_input.ogg"
             self.azure_translate.text_to_speech(
-                response_source, row_lt['user_language']+'-IN', audio_output_file[:-3] + "wav"
+                response_source, row_lt['user_language']+'-IN', audio_output_file
             )
-            subprocess.run(
-                [
-                    "ffmpeg",
-                    "-i",
-                    audio_output_file[:-3] + "wav",
-                    "-codec:a",
-                    "aac",
-                    audio_output_file,
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            # subprocess.run(
+            #     [
+            #         "ffmpeg",
+            #         "-i",
+            #         audio_output_file[:-3] + "wav",
+            #         "-codec:a",
+            #         "aac",
+            #         audio_output_file,
+            #     ],
+            #     stdout=subprocess.DEVNULL,
+            #     stderr=subprocess.DEVNULL,
+            # )
             audio_msg_id = self.messenger.send_audio(
                 audio_output_file, row_lt['whatsapp_id'], msg_id
             )
-            utils.remove_extra_voice_files(audio_input_file, audio_output_file)
+            utils.remove_extra_voice_files(None, audio_output_file)
 
         return sent_msg_id, audio_msg_id, response_source
 
@@ -408,23 +407,23 @@ class WhatsappResponder(BaseResponder):
         )
         audio_msg_id = None
         if msg_type == "audio":
-            audio_output_file = "test_audio_output.aac"
+            audio_output_file = "test_audio_output.ogg"
             self.azure_translate.text_to_speech(
-                raise_message, row_lt['user_language']+'-IN', audio_output_file[:-3] + "wav"
+                raise_message, row_lt['user_language']+'-IN', audio_output_file
             )
 
-            subprocess.run(
-                [
-                    "ffmpeg",
-                    "-i",
-                    audio_output_file[:-3] + "wav",
-                    "-codec:a",
-                    "aac",
-                    audio_output_file,
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            # subprocess.run(
+            #     [
+            #         "ffmpeg",
+            #         "-i",
+            #         audio_output_file[:-3] + "wav",
+            #         "-codec:a",
+            #         "aac",
+            #         audio_output_file,
+            #     ],
+            #     stdout=subprocess.DEVNULL,
+            #     stderr=subprocess.DEVNULL,
+            # )
 
             audio_msg_id = self.messenger.send_audio(
                 audio_output_file, row_lt['whatsapp_id'], row_query['message_id']
@@ -480,28 +479,27 @@ class WhatsappResponder(BaseResponder):
         )
         
         if msg_type == "audio":
-            audio_input_file = "test_audio_input.aac"
-            audio_output_file = "test_audio_output.aac"
+            audio_output_file = "test_audio_output.ogg"
             self.azure_translate.text_to_speech(
-                response_source, row_lt['user_language']+'-IN', audio_output_file[:-3] + "wav"
+                response_source, row_lt['user_language']+'-IN', audio_output_file
             )
             
-            subprocess.run(
-                [
-                    "ffmpeg",
-                    "-i",
-                    audio_output_file[:-3] + "wav",
-                    "-codec:a",
-                    "aac",
-                    audio_output_file,
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            # subprocess.run(
+            #     [
+            #         "ffmpeg",
+            #         "-i",
+            #         audio_output_file[:-3] + "wav",
+            #         "-codec:a",
+            #         "aac",
+            #         audio_output_file,
+            #     ],
+            #     stdout=subprocess.DEVNULL,
+            #     stderr=subprocess.DEVNULL,
+            # )
             audio_msg_id = self.messenger.send_audio(
                 audio_output_file, row_lt['whatsapp_id'], msg_id
             )
-            utils.remove_extra_voice_files(audio_input_file, audio_output_file)
+            utils.remove_extra_voice_files(None, audio_output_file)
 
         return sent_msg_id, audio_msg_id, response_source
     
@@ -625,6 +623,7 @@ class WhatsappResponder(BaseResponder):
             self.config["SEND_POLL"]
             and query_type != "small-talk"
         ):
+            print("Sending poll and reaction")
             self.messenger.send_reaction(row_lt['whatsapp_id'], sent_msg_id, "\u2753")
             if row_query['message_type'] == "audio":
                 self.messenger.send_reaction(row_lt['whatsapp_id'], audio_msg_id, "\u2753")
@@ -1237,7 +1236,7 @@ class WhatsappResponder(BaseResponder):
 
         
         if row_query["message_type"] == "audio":
-            corrected_audio_loc = "corrected_audio.wav"
+            corrected_audio_loc = "corrected_audio.ogg"
             remove_extra_voice_files(
                 corrected_audio_loc, corrected_audio_loc[:-3] + ".aac"
             )
@@ -1249,6 +1248,9 @@ class WhatsappResponder(BaseResponder):
             gpt_output_source = self.azure_translate.translate_text(
                 gpt_output, "en", user_row_lt['user_language'], self.logger
             )
+            self.azure_translate.text_to_speech(
+                gpt_output_source, user_row_lt['user_language'] + "-IN", corrected_audio_loc
+            )
 
             gpt_output = f"{gpt_output}\n\n{verification_text}"
             gpt_output_source = f"{gpt_output_source}\n\n{verification_text_source}"
@@ -1259,20 +1261,20 @@ class WhatsappResponder(BaseResponder):
                 row_query["message_id"],
             )
 
-            subprocess.run(
-                [
-                    "ffmpeg",
-                    "-i",
-                    corrected_audio_loc,
-                    "-codec:a",
-                    "aac",
-                    corrected_audio_loc[:-3] + ".aac",
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            # subprocess.run(
+            #     [
+            #         "ffmpeg",
+            #         "-i",
+            #         corrected_audio_loc,
+            #         "-codec:a",
+            #         "aac",
+            #         corrected_audio_loc[:-3] + ".aac",
+            #     ],
+            #     stdout=subprocess.DEVNULL,
+            #     stderr=subprocess.DEVNULL,
+            # )
             updated_audio_msg_id = self.messenger.send_audio(
-                corrected_audio_loc[:-3] + ".aac",
+                corrected_audio_loc,
                 user_row_lt['whatsapp_id'],
                 row_query["message_id"]
             )

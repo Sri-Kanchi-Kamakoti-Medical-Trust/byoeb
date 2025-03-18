@@ -81,6 +81,7 @@ class translator:
         """
 
         # This example requires environment variables named "SPEECH_KEY" and "SPEECH_REGION"
+        
         speech_config = speechsdk.SpeechConfig(
             subscription=self.speech_key, region=self.location
         )
@@ -124,6 +125,7 @@ class translator:
         speech_config.speech_synthesis_voice_name = self.voice_dict[self.speech_voice][
             source_audio_language
         ]
+        speech_config.set_speech_synthesis_output_format(speechsdk.SpeechSynthesisOutputFormat.Ogg48Khz16BitMonoOpus)
         speech_synthesizer = speechsdk.SpeechSynthesizer(
             speech_config=speech_config, audio_config=audio_config
         )
@@ -155,6 +157,7 @@ class translator:
         speech_config.speech_synthesis_voice_name = self.voice_dict[self.speech_voice][
             source_audio_language
         ]
+        speech_config.set_speech_synthesis_output_format(speechsdk.SpeechSynthesisOutputFormat.Ogg48Khz16BitMonoOpus)
         speech_synthesizer = speechsdk.SpeechSynthesizer(
             speech_config=speech_config, audio_config=audio_config
         )
