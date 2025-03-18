@@ -46,6 +46,19 @@ class OnboardMedics:
             print('User already exists')
             return
         
+        doctor_name = data['operating_doctor']
+        doctor_whatsapp_id = '91'+str(data['operating_doctor_number'])
+
+        if doctor_whatsapp_id in self.doctor_alternate_data:
+            doctor_whatsapp_id = self.doctor_alternate_data[doctor_whatsapp_id]
+            doctor_row = self.user_db.get_from_whatsapp_id(doctor_whatsapp_id)
+            doctor_name = doctor_row['user_name']    
+        else:
+            doctor_row = self.user_db.collection.find_one({'user_name': doctor_name, 'user_type': 'Doctor', 'org_id': unit_data['org_id']})
+        
+        if doctor_row is None:
+            return
+
         patient_row = {
             'user_id': str(uuid4()),
             'whatsapp_id': '91'+str(data['phone_number']),
@@ -103,16 +116,10 @@ class OnboardMedics:
             message_timestamp=datetime.now(),
             transaction_message_id=None,
         )
-        doctor_name = data['operating_doctor']
-        doctor_whatsapp_id = '91'+str(data['operating_doctor_number'])
-
-        if doctor_whatsapp_id in self.doctor_alternate_data:
-            doctor_whatsapp_id = self.doctor_alternate_data[doctor_whatsapp_id]
-            doctor_row = self.user_db.get_from_whatsapp_id(doctor_whatsapp_id)
-            doctor_name = doctor_row['user_name']    
-        else:
-            doctor_row = self.user_db.collection.find_one({'user_name': doctor_name, 'user_type': 'Doctor', 'org_id': unit_data['org_id']})
         
+        
+
+
         if doctor_row is None:
             doctor_row = {
                 'user_id': str(uuid4()),
