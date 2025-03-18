@@ -26,6 +26,7 @@ from embeddings.chroma.llama_index_azure_openi import get_chroma_llama_index_azu
 from embeddings.chroma.openai import get_chroma_openai_embedding_fn
 from hierarchical_rag import hierarchical_rag_augment, hierarchical_rag_generate, hierarchical_rag_retrieve
 
+IDK = "I do not know the answer to your question"
 
 
 class KnowledgeBase:
@@ -49,7 +50,26 @@ class KnowledgeBase:
         user_conv_db: UserConvDB,
         msg_id: str,
         logger: LoggingDatabase,
-        org_id,
+        org_id: str = "TEST",
+    ):
+        num_chunks_array = [3, 7]
+        for num_chunks in num_chunks_array:
+            print("Trying with num_chunks: ", num_chunks)
+            gpt_output, citations, query_type = self.hierarchical_rag_answer_query_helper(
+                user_conv_db, msg_id, logger, num_chunks=num_chunks, org_id=org_id
+            )
+            if not gpt_output.startswith(IDK):
+                break
+
+        return (gpt_output, citations, query_type)
+
+    def hierarchical_rag_answer_query_helper(
+        self,
+        user_conv_db: UserConvDB,
+        msg_id: str,
+        logger: LoggingDatabase,
+        num_chunks: int = 3,
+        org_id: str = "TEST",
     ):
         if self.config["API_ACTIVATED"] is False:
             gpt_output = "API not activated"
@@ -61,7 +81,7 @@ class KnowledgeBase:
         if not query.endswith("?"):
             query += "?"
         print("Query: ", query)
-        relevant_chunks_string, relevant_update_chunks_string, citations, chunks = hierarchical_rag_retrieve(query, org_id)
+        relevant_chunks_string, relevant_update_chunks_string, citations, chunks = hierarchical_rag_retrieve(query, org_id, num_chunks)
         logger.add_log(
             sender_id="bot",
             receiver_id="bot",

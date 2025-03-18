@@ -20,7 +20,7 @@ llm_client = get_client_with_key()
 model = os.environ["OPENAI_API_MODEL"].strip()
 general = "Generic"
 
-def hierarchical_rag_retrieve(query, org_id):
+def hierarchical_rag_retrieve(query, org_id, num_chunks=3):
     chroma_client = chromadb.PersistentClient(
         path=persist_directory, settings=Settings(anonymized_telemetry=False)
     )
@@ -31,7 +31,7 @@ def hierarchical_rag_retrieve(query, org_id):
     print('collection ids count: ', collection_count)
     relevant_chunks = collection.query(
         query_texts=[query],
-        n_results=3,
+        n_results=num_chunks,
         where={"org_id": {"$in": [org_id, general]}}
     )
     citations: str = "\n".join(
