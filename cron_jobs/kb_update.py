@@ -9,7 +9,7 @@ import sys
 
 sys.path.append(local_path + "/src")
 from knowledge_base import KnowledgeBase
-from conversation_database import LoggingDatabase
+from app_logging import LoggingDatabase
 import pandas as pd
 import utils
 from tqdm import tqdm

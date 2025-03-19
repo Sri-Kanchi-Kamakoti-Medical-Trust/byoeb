@@ -16,7 +16,7 @@ from database import UserDB, UserConvDB, BotConvDB, ExpertConvDB, UserRelationDB
 
 from messenger import WhatsappMessenger
 from responder import WhatsappResponder
-from conversation_database import (
+from app_logging import (
     LoggingDatabase
 )
 
