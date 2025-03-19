@@ -17,7 +17,7 @@ import traceback
 __import__("pysqlite3")
 sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 sys.path.append("src")
-from conversation_database import LoggingDatabase
+from app_logging import LoggingDatabase
 from responder import WhatsappResponder
 from medics_integration import OnboardMedics
 from az_table import PatientTable

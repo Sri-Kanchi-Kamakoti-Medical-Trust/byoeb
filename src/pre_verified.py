@@ -193,13 +193,10 @@ class PreverifiedClient:
 
 if __name__ == "__main__":
     oai_client = OpenAIEmbeddingClient()
-    # text = "What is cataract?"
-    # embedding = oai_client.get_embedding_batch([text])
-    # print(embedding)
-
+    
     preverified_client = PreverifiedClient(
-        endpoint="https://byoeb-search.search.windows.net",
-        index_name="catbot_pre_verified_index",
+        os.environ["AZURE_SEARCH_ENDPOINT"],
+        os.environ["AZURE_SEARCH_INDEX_NAME"]
     )
 
     question = "How long does it take to recover from cataract surgery?"

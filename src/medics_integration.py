@@ -11,7 +11,7 @@ import sys
 sys.path.append(local_path + '/src')
 with open(os.path.join(local_path,'config.yaml')) as file:    
         config = yaml.load(file, Loader=yaml.FullLoader)
-from conversation_database import LoggingDatabase
+from app_logging import LoggingDatabase
 from uuid import uuid4
 from database import UserDB, UserConvDB, ExpertConvDB, BotConvDB, UserRelationDB
 from az_table import DoctorAlternateTable

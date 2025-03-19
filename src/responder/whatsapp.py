@@ -9,7 +9,7 @@ from azure.storage.blob import BlobServiceClient
 import numpy as np
 import json
 from knowledge_base import KnowledgeBase
-from conversation_database import (
+from app_logging import (
     LoggingDatabase,
 )
 from database import UserDB, UserConvDB, BotConvDB, ExpertConvDB, UserRelationDB, FAQDB

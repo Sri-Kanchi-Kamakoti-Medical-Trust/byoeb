@@ -1,5 +1,7 @@
 import os
 import json
+import yaml
+from app_logging import LoggingDatabase
 
 class QueryRewriter:
     def __init__(self):
@@ -31,6 +33,6 @@ if __name__ == "__main__":
         {"role": "user", "content": "I need help with my OpenAI account."},
         {"role": "assistant", "content": "Sure, I can help you with that."},
     ]
-    logger = None  # Replace with an actual logger instance
+    logger = LoggingDatabase(config)
     rewritten_query = query_rewriter.translate_and_rewrite_query(query, src_lang, conversation_history, logger)
     print(rewritten_query)

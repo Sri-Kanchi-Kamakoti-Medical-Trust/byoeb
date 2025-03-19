@@ -8,9 +8,7 @@ sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 import chromadb
 import json
 
-from conversation_database import (
-    ConversationDatabase,
-    LongTermDatabase,
+from app_logging import (
     LoggingDatabase,
 )
 from database import UserConvDB
