@@ -74,6 +74,16 @@ class UserDB(BaseDB):
             upsert=True
         )
 
+    def update_conv_history(self, user_id, history, new_history):
+        history = history + [new_history]
+        history = history[-2:]
+        self.collection.update_one(
+            {'user_id': user_id},
+            {'$set': {
+                'conv_history': history
+            }}
+        )
+
     def get_related_qns(self, user_id):
         user = self.collection.find_one({'user_id': user_id})
         return user.get('related_qns', [])
@@ -85,7 +95,7 @@ class UserDB(BaseDB):
                 'activity_timestamp': int(datetime.datetime.now().timestamp())
             }}
         )
-        print(cache.keys())
+        
         try:
             for key in cache.keys():
                 if row['user_id'] in str(key):
