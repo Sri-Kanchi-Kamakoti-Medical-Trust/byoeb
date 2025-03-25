@@ -347,24 +347,24 @@
         }
     },
     "smalltalk": {
-        "text": "<answer_smalltalk>",
+        "text": "<answer>",
         "en":{
-            "audio": "You said: *<query>*\n\nResponse: <answer_smalltalk>"
+            "answer_audio": "You said: *<query>*\n\nResponse: <answer>"
         },
         "hi":{
-            "audio": "आपने पूछा: *<query>*\n\nजवाब: <answer_smalltalk>."            
+            "answer_audio": "आपने पूछा: *<query>*\n\nजवाब: <answer>."            
         },
         "ta":{
-            "audio": "நீங்கள் சொன்னீர்கள்: <query>\n\nபதில்: <answer_smalltalk>."
+            "answer_audio": "நீங்கள் சொன்னீர்கள்: <query>\n\nபதில்: <answer>."
         },
         "te":{
-            "audio":"మీరు చెప్పారు: <query>\n\nసమాధానం: <answer_smalltalk>."
+            "answer_audio":"మీరు చెప్పారు: <query>\n\nసమాధానం: <answer>."
         },
         "kn":{
-            "audio":"ನೀನು ಹೇಳಿದೆ: <query>\n\nಪ್ರತಿಕ್ರಿಯೆ: <answer_smalltalk>."
+            "answer_audio":"ನೀನು ಹೇಳಿದೆ: <query>\n\nಪ್ರತಿಕ್ರಿಯೆ: <answer>."
         },
         "ur":{
-            "audio":"آپ نے کہا: <query>\n\nجواب: <answer_smalltalk>."
+            "answer_audio":"آپ نے کہا: <query>\n\nجواب: <answer>."
         }
     },
     "not_audio_or_text": {
