@@ -519,6 +519,14 @@ class WhatsappResponder(BaseResponder):
         sent_msg_id = self.messenger.send_message_with_options(
             row_lt['whatsapp_id'], message_src, option_ids, options_src, msg_id
         )
+        new_conv = {"role": "assistant", "content": message_en}
+        self.user_db.update_conv_history(
+            row_lt['user_id'],
+            new_conv,
+            row_lt.get("conv_history", [])
+        )
+
+        row_lt['conv_history'] = row_lt.get("conv_history", []) + [new_conv]
         
         self.bot_conv_db.insert_row(
             receiver_id=row_lt['user_id'],
@@ -610,6 +618,14 @@ class WhatsappResponder(BaseResponder):
             sent_msg_id, audio_msg_id, response_source = self.send_query_response_and_follow_up(row_query['message_type'], row_query['message_id'], llm_response, row_lt, row_query)
         else:
             sent_msg_id, audio_msg_id, response_source = self.send_query_response(row_query['message_type'], row_query['message_id'], llm_response, row_lt)
+
+        new_conv = {"role": "assistant", "content": response}
+        self.user_db.update_conv_history(
+            row_lt['user_id'],
+            new_conv,
+            row_lt.get("conv_history", [])
+        )
+        row_lt['conv_history'] = row_lt.get("conv_history", []) + [new_conv]
 
         self.bot_conv_db.insert_row(
             receiver_id=row_lt['user_id'],
@@ -807,9 +823,15 @@ class WhatsappResponder(BaseResponder):
             )
     
 
-        conversation_history = row_lt.get("conversation_history", [])
-        query_context = self.query_rewriter.translate_and_rewrite_query(msg_text, row_lt['user_language'], conversation_history)
-        print(query_context)
+        conv_history = row_lt.get("conv_history", [])
+        query_context = self.query_rewriter.translate_and_rewrite_query(msg_text, row_lt['user_language'], conv_history)
+        new_conv = {"role": "user", "content": query_context["query_en"]}
+        self.user_db.update_conv_history(
+            row_lt['user_id'],
+            new_conv,
+            conv_history
+        )
+        row_lt['conv_history'] = conv_history + [new_conv]
         query_type = query_context["query_type"]
         
         db_id = self.user_conv_db.insert_user_query(
@@ -1310,19 +1332,6 @@ class WhatsappResponder(BaseResponder):
                 gpt_output_source,
                 row_query["message_id"],
             )
-
-            # subprocess.run(
-            #     [
-            #         "ffmpeg",
-            #         "-i",
-            #         corrected_audio_loc,
-            #         "-codec:a",
-            #         "aac",
-            #         corrected_audio_loc[:-3] + ".aac",
-            #     ],
-            #     stdout=subprocess.DEVNULL,
-            #     stderr=subprocess.DEVNULL,
-            # )
             updated_audio_msg_id = self.messenger.send_audio(
                 corrected_audio_loc,
                 user_row_lt['whatsapp_id'],
@@ -1354,6 +1363,14 @@ class WhatsappResponder(BaseResponder):
             )
             updated_audio_msg_id = None
             self.messenger.send_reaction(user_row_lt['whatsapp_id'], updated_msg_id, "\u2705")
+
+        new_conv = {"role": "assistant", "content": gpt_output}
+        self.user_db.update_conv_history(
+            user_row_lt['user_id'],
+            new_conv,
+            user_row_lt.get("conv_history", [])
+        )
+        user_row_lt['conv_history'] = user_row_lt.get("conv_history", []) + [new_conv]
 
         self.bot_conv_db.insert_row(
             receiver_id=user_row_lt['user_id'],

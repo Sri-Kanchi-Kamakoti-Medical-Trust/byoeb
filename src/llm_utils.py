@@ -67,6 +67,8 @@ class QueryRewriter:
         system_prompt = self.llm_prompts["query_translate_and_rerank"]["general"]
         lang_specific_prompt = self.llm_prompts["query_translate_and_rerank"][src_lang]
         system_prompt = system_prompt.replace("<lang_specific>", lang_specific_prompt)
+        conversation_history = self.format_conversation_history(conversation_history)
+        print(f"Conversation History: {conversation_history}")
         query_prompt = f"<query_src>{query}</query_src>\n<conversation_history>{conversation_history}</conversation_history>"
         prompt = [
             {

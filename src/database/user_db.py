@@ -6,7 +6,7 @@ from uuid import uuid4
 from cachetools import cached, TTLCache
 from database.base import BaseDB
 
-eight_hours = 1 * 60 * 60
+eight_hours = 1
 cache = TTLCache(maxsize=100, ttl=eight_hours)
 
 class UserDB(BaseDB):
@@ -74,9 +74,9 @@ class UserDB(BaseDB):
             upsert=True
         )
 
-    def update_conv_history(self, user_id, history, new_history):
-        history = history + [new_history]
-        history = history[-2:]
+    def update_conv_history(self, user_id, new_conv, history):
+        history = history + [new_conv]
+        history = history[-10:]  # Keep only the last 10 items
         self.collection.update_one(
             {'user_id': user_id},
             {'$set': {
