@@ -450,8 +450,9 @@ class WhatsappResponder(BaseResponder):
         response = llm_response["response_en"]
         response_source = llm_response["response_src"]
         if msg_type == "audio":
-            response = self.template_messages["new_question"]["en"]["answer_audio"]
-            response_source = self.template_messages["new_question"][row_lt['user_language']]["answer_audio"]
+            field = "new_question" if row_query["query_type"] != "small-talk" else "smalltalk"
+            response = self.template_messages[field]["en"]["answer_audio"]
+            response_source = self.template_messages[field][row_lt['user_language']]["answer_audio"]
             response = response.replace("<query>", row_query['message_english'])
             response_source = response_source.replace("<query>", row_query['message_source_lang'])
             response = response.replace("<answer>", llm_response["response_en"])
@@ -506,7 +507,7 @@ class WhatsappResponder(BaseResponder):
         similar_answer_en = pre_verified_response['metadata']['answer']
 
         similar_ques_src, similar_answer_src = self.azure_translate.translate_text_batch(
-            [similar_ques_en, similar_answer_en], "en", row_lt['user_language'], self.logger
+            [similar_ques_en, similar_answer_en], "en", row_lt['user_language']
         )
 
         message_en = message_en.replace("<similar_question>", similar_ques_en)
@@ -664,7 +665,6 @@ class WhatsappResponder(BaseResponder):
                 query=row_query["message_context"],
                 org_id=row_lt['org_id']
             )
-            print(pre_verified_response)
             if pre_verified_response is not None:
                 self.send_preverified_response(msg_id, pre_verified_response, row_lt, row_query)
                 return
