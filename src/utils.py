@@ -177,13 +177,13 @@ def pull_sheet_data(SCOPES, SPREADSHEET_ID, DATA_TO_PULL, local_path):
 
 
 def remove_extra_voice_files(audio_file_path, out_path):
-    if os.path.isfile(audio_file_path):
+    if audio_file_path is not None and os.path.isfile(audio_file_path):
         os.remove(audio_file_path)
-    if os.path.isfile(audio_file_path[:-3] + "wav"):
+    if audio_file_path is not None and os.path.isfile(audio_file_path[:-3] + "wav"):
         os.remove(audio_file_path[:-3] + "wav")
-    if os.path.isfile(out_path):
+    if out_path is not None and os.path.isfile(out_path):
         os.remove(out_path)
-    if os.path.isfile(out_path[:-3] + "wav"):
+    if out_path is not None and os.path.isfile(out_path[:-3] + "wav"):
         os.remove(out_path[:-3] + "wav")
 
 
