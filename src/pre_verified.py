@@ -179,6 +179,7 @@ class PreverifiedClient:
 
     def find_closest_preverified_pair(self, query, org_id):
         preverified_pairs_top_k = self.hybrid_search(query, org_id)
+        preverified_pairs_top_k = [ p for p in preverified_pairs_top_k if len(p['metadata']['answer']) < 800 ]
         preverified_pairs_top_k = self.filter_questions(query, preverified_pairs_top_k)
         preverified_pairs_reraanked = self.rerank(query, preverified_pairs_top_k)
         return preverified_pairs_reraanked[0] if preverified_pairs_reraanked else None
