@@ -33,6 +33,26 @@ class QueryRewriter:
                 result[key] = match.group(1).strip()
         
         return result
+    
+    def format_conversation_history(self, conversation_history):
+        """
+        Format the conversation history for the LLM.
+        
+        Args:
+            conversation_history (list): The conversation history to format.
+            
+        Returns:
+            str: The formatted conversation history.
+        """
+        formatted_history = []
+        for message in conversation_history:
+            role = message['role']
+            content = message['content']
+            if role == 'user':
+                formatted_history.append(f"<user>{content}</user>")
+            elif role == 'assistant':
+                formatted_history.append(f"<assistant>{content}</assistant>")
+        return "\n".join(formatted_history)
 
     def translate_and_rewrite_query(self, query, src_lang, conversation_history):
         """
@@ -44,7 +64,9 @@ class QueryRewriter:
         Returns:
             dict: A dictionary containing the rewritten query and additional information.
         """
-        system_prompt = self.llm_prompts["query_translate_and_rerank"]
+        system_prompt = self.llm_prompts["query_translate_and_rerank"]["general"]
+        lang_specific_prompt = self.llm_prompts["query_translate_and_rerank"][src_lang]
+        system_prompt = system_prompt.replace("<lang_specific>", lang_specific_prompt)
         query_prompt = f"<query_src>{query}</query_src>\n<conversation_history>{conversation_history}</conversation_history>"
         prompt = [
             {
@@ -57,10 +79,10 @@ class QueryRewriter:
             }
         ]
         response = get_llm_response(prompt)
-        print(f"Response from LLM: {response}")
-        
         # Parse the response and return as a dictionary
         result = self._parse_xml_response(response)
+        result['query_type'] = "small-talk" if result['query_type'] == "small_talk" else result['query_type']
+        
         return result
 
 if __name__ == "__main__":
