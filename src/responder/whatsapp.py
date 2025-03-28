@@ -660,7 +660,7 @@ class WhatsappResponder(BaseResponder):
     def answer_query_text(self, msg_id, row_query, row_lt):
         print("Answering query")
 
-        if self.config['PREVERIFIED']:
+        if self.config['PREVERIFIED'] and row_query['query_type'] != 'small-talk':
             pre_verified_response = self.preverified_client.find_closest_preverified_pair(
                 query=row_query["message_context"],
                 org_id=row_lt['org_id']
