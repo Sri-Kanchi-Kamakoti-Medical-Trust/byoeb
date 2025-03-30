@@ -870,8 +870,14 @@ class WhatsappResponder(BaseResponder):
         return
 
     def handle_incomprehensible_query(self, msg_id, row_query, row_lt):
-        message_en = self.template_messages["idk"]["en"]["incomprehensible_text"]
-        message_src = self.template_messages["idk"][row_lt['user_language']]["incomprehensible_text"]
+        if row_query['message_type'] == "audio":
+            message_en = self.template_messages["idk"]["en"]["incomprehensible_audio"]
+            message_src = self.template_messages["idk"][row_lt['user_language']]["incomprehensible_audio"]
+            message_en = message_en.replace("<query>", row_query['message_english'])
+            message_src = message_src.replace("<query>", row_query['message_source_lang'])
+        else:
+            message_en = self.template_messages["idk"]["en"]["incomprehensible_text"]
+            message_src = self.template_messages["idk"][row_lt['user_language']]["incomprehensible_text"]
         questions_src = self.get_suggested_questions(row_lt, row_query, IDK)
         title, list_title, questions_src, questions_en = questions_src
         sent_msg_id = self.messenger.send_suggestions(
