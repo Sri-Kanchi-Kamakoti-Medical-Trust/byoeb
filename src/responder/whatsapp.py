@@ -268,16 +268,35 @@ class WhatsappResponder(BaseResponder):
         return
 
     def check_expiration(self, row_lt):
-        if row_lt.get("is_expired", False):
-            message_text = "Your account has expired. Please contact your admin."
-            source_lang = row_lt["user_language"]
-            text = self.azure_translate.translate_text(
-                message_text, "en", source_lang, self.logger
-            )
-            self.messenger.send_message(row_lt['whatsapp_id'], text, None)
-            return True
-        else:
+        # if row_lt.get("is_expired", False):
+        #     message_text = "Your account has expired. Please contact your admin."
+        #     source_lang = row_lt["user_language"]
+        #     text = self.azure_translate.translate_text(
+        #         message_text, "en", source_lang, self.logger
+        #     )
+        #     self.messenger.send_message(row_lt['whatsapp_id'], text, None)
+        #     return True
+        # else:
+        #     return False
+        patient_surgery_date = row_lt.get("patient_surgery_date", None)
+        if patient_surgery_date is None:
             return False
+        
+        patient_surgery_date = datetime.strptime(patient_surgery_date, "%Y-%m-%d")
+
+        if (datetime.now() - patient_surgery_date).days > 30:
+            return True
+        return False
+    
+    def handle_expired_user_message(self, msg_object, row_lt):
+        message_text = "Your account has expired. Please contact the hospital in case of any queries."
+        source_lang = row_lt["user_language"]
+        text = self.azure_translate.translate_text(
+            message_text, "en", source_lang, self.logger
+        )
+        self.messenger.send_message(row_lt['whatsapp_id'], text, msg_object["id"])
+        return
+        
 
     def handle_language_poll_response(self, msg_object, row_lt):
         print("Handling language poll response")
@@ -736,6 +755,9 @@ class WhatsappResponder(BaseResponder):
 
     def handle_response_user(self, msg_object, row_lt):
         # data is a dictionary that contains from_number, msg_id, msg_object, user_type
+        if self.check_expiration(row_lt):
+            self.handle_expired_user_message(msg_object, row_lt)
+            return
         print("Handling user response")
         msg_type = msg_object["type"]
         user_id = row_lt['user_id'] 
