@@ -6,9 +6,7 @@ sys.path.append(os.path.dirname(__file__))
 src_path = os.path.join(os.environ["APP_PATH"], "src")
 print(src_path)
 
-from conversation_database import (
-    ConversationDatabase,
-    LongTermDatabase,
+from app_logging import (
     LoggingDatabase,
 )
 

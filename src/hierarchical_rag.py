@@ -57,21 +57,20 @@ def hierarchical_rag_retrieve(query, org_id, num_chunks=3):
             chunks.append((chunk_text, relevant_chunks["metadatas"][0][chunk]["source"].strip(), relevant_chunks["metadatas"][0][chunk]["org_id"].strip()))
     return relevant_chunks_string, relevant_update_chunks_string, citations, chunks
 
-def hierarchical_rag_augment(conversation_history, retrieved_chunks, system_prompt, query):
-    query_prompt = f"""
-        Today's date is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n\
-        
-        The following knowledge base chunks have been provided to you as reference:\n\n\
-        Raw documents are as follows:\n\
-        {retrieved_chunks[0]}\n\n\
-        New documents are as follows:\n\
-        {retrieved_chunks[1]}\n\n\
-        The most recent conversations are here:\n\n\
-        {conversation_history}\n\
-        You are asked the following query:\n\n\
-        "{query}"\n\n\
-
-    """
+def hierarchical_rag_augment(retrieved_chunks, system_prompt, query, query_type, user_context):
+    # Today's date is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n\
+    date_today = datetime.now().strftime("%Y-%m-%d")
+    user_role = user_context.get("user_type", "")
+    user_gender = user_context.get("patient_gender", "")
+    user_age = user_context.get("patient_age", "")
+    date_surgery = user_context.get("patient_surgery_date", "")
+    user_language = user_context.get("user_language", "en")
+    
+    query_prompt = f"<query_type>{query_type}</query_type>\n<query_en_addcontext>{query}</query_en_addcontext>\n\
+        This query was originally asked in by a(n) <user_role>{user_role}</user_role> who is a <user_gender>{user_gender}</user_gender> aged <user_age>{user_age}</user_age> years.\
+        The user speaks <user_language>{user_language}</user_language>.\n\
+        The patient’s surgery is scheduled for <date_surgery>{date_surgery}</date_surgery>, and today’s date is <date_today>{date_today}</date_today>.\n\
+        <raw_knowledge_base>{retrieved_chunks[0]}</raw_knowledge_base>\n<new_knowledge_base>{retrieved_chunks[1]}</new_knowledge_base>" 
 
     prompt = [{"role": "system", "content": system_prompt}]
     prompt.append({"role": "user", "content": query_prompt})

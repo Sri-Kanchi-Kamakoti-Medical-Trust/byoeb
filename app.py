@@ -17,7 +17,7 @@ import traceback
 __import__("pysqlite3")
 sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 sys.path.append("src")
-from conversation_database import LoggingDatabase
+from app_logging import LoggingDatabase
 from responder import WhatsappResponder
 from medics_integration import OnboardMedics
 from az_table import PatientTable
@@ -89,7 +89,7 @@ def webhook():
             )
             return "OK", 200
     # adding request to queue
-    print("Adding message to queue, ", body)
+    # print("Adding message to queue, ", body)
     queue_client.send_message(json.dumps(body))
     return "OK", 200
 
@@ -220,9 +220,9 @@ def process_queue():
                         )
                         queue_client.delete_message(message)
                         continue
-                    print("Message received", message.content)
+                    # print("Message received", message.content)
                     body = json.loads(message.content)
-                    print("Processing new message")
+                    # print("Processing new message")
                     responder.response(body)
                     queue_client.delete_message(message)
                 except Exception as e:

@@ -179,6 +179,7 @@ class PreverifiedClient:
 
     def find_closest_preverified_pair(self, query, org_id):
         preverified_pairs_top_k = self.hybrid_search(query, org_id)
+        preverified_pairs_top_k = [ p for p in preverified_pairs_top_k if len(p['metadata']['answer']) < 800 ]
         preverified_pairs_top_k = self.filter_questions(query, preverified_pairs_top_k)
         preverified_pairs_reraanked = self.rerank(query, preverified_pairs_top_k)
         return preverified_pairs_reraanked[0] if preverified_pairs_reraanked else None
@@ -193,13 +194,10 @@ class PreverifiedClient:
 
 if __name__ == "__main__":
     oai_client = OpenAIEmbeddingClient()
-    # text = "What is cataract?"
-    # embedding = oai_client.get_embedding_batch([text])
-    # print(embedding)
-
+    
     preverified_client = PreverifiedClient(
-        endpoint="https://byoeb-search.search.windows.net",
-        index_name="catbot_pre_verified_index",
+        os.environ["AZURE_SEARCH_ENDPOINT"],
+        os.environ["AZURE_SEARCH_INDEX_NAME"]
     )
 
     question = "How long does it take to recover from cataract surgery?"

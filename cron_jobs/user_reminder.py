@@ -9,7 +9,7 @@ import sys
 
 sys.path.append(local_path + "/src")
 
-from conversation_database import LongTermDatabase, LoggingDatabase
+from app_logging import LoggingDatabase
 from messenger.whatsapp import WhatsappMessenger
 import os
 import json
@@ -17,7 +17,7 @@ import datetime
 
 template_name = "reminder_cataractbot"
 
-long_term_db = LongTermDatabase(config)
+
 logger = LoggingDatabase(config)
 messenger = WhatsappMessenger(config, logger)
 
@@ -26,12 +26,6 @@ print("Date: ", datetime.datetime.now())
 all_user_list = []
 all_user_language = []
 all_user_expiration = []
-
-for user in config["USERS"]:
-    user_list = long_term_db.get_list_of_multiple_columns([user+"_whatsapp_id", user+"_language", "is_expired"])
-    all_user_list = all_user_list + user_list[user+"_whatsapp_id"]
-    all_user_language = all_user_language + user_list[user+"_language"]
-    all_user_expiration = all_user_expiration + user_list["is_expired"]
 
 
 

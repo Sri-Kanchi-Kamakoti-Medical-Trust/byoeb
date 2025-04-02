@@ -16,7 +16,7 @@ from database import UserDB, UserConvDB, BotConvDB, ExpertConvDB, UserRelationDB
 
 from messenger import WhatsappMessenger
 from responder import WhatsappResponder
-from conversation_database import (
+from app_logging import (
     LoggingDatabase
 )
 import traceback
@@ -62,7 +62,9 @@ if len(df) == 0:
     print("No unresolved queries")
     sys.exit(0)
 
-df = df[df['query_type'] != 'small-talk']
+query_types_to_escalate = ["medical", "logistical"]
+
+df = df[df['query_type'].isin(query_types_to_escalate)]
 df.reset_index(drop=True, inplace=True)
 print(df)
 
@@ -79,7 +81,6 @@ for i, row in tqdm(df.iterrows()):
         query_type = row["query_type"]
         region = user_row_lt["org_id"]
         print(query_type, region)
-        # print(query_type_to_escalation_expert[row["query_type"]][region], user_row_lt, row)
         responder.send_correction_poll_expert(user_row_lt, query_type_to_escalation_expert[query_type][region], row, True)
     except Exception as e:
         print(e)

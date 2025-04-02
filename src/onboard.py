@@ -1,4 +1,4 @@
-from conversation_database import LoggingDatabase
+from app_logging import LoggingDatabase
 import json
 import os
 from azure_language_tools import translator

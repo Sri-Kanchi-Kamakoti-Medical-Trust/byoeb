@@ -4,13 +4,11 @@ import shutil
 import sys
 __import__("pysqlite3")
 sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
-
+import traceback
 import chromadb
 import json
-
-from conversation_database import (
-    ConversationDatabase,
-    LongTermDatabase,
+import re
+from app_logging import (
     LoggingDatabase,
 )
 from database import UserConvDB
@@ -48,68 +46,59 @@ class KnowledgeBase:
     def hierarchical_rag_answer_query(
         self,
         user_conv_db: UserConvDB,
-        msg_id: str,
+        row_query: dict[str, Any],
         logger: LoggingDatabase,
-        org_id: str = "TEST",
+        row_lt: dict[str, Any],
     ):
         num_chunks_array = [3, 7]
         for num_chunks in num_chunks_array:
             print("Trying with num_chunks: ", num_chunks)
-            gpt_output, citations, query_type = self.hierarchical_rag_answer_query_helper(
-                user_conv_db, msg_id, logger, num_chunks=num_chunks, org_id=org_id
+            llm_output, citations = self.hierarchical_rag_answer_query_helper(
+                row_query, logger, num_chunks, row_lt
             )
-            if not gpt_output.startswith(IDK):
+            if not llm_output["response_en"].startswith(IDK):
                 break
 
-        return (gpt_output, citations, query_type)
+        return (llm_output, citations)
 
     def hierarchical_rag_answer_query_helper(
         self,
-        user_conv_db: UserConvDB,
-        msg_id: str,
+        row_query: dict[str, Any],
         logger: LoggingDatabase,
         num_chunks: int = 3,
-        org_id: str = "TEST",
+        row_lt: dict[str, Any] = None,
     ):
         if self.config["API_ACTIVATED"] is False:
             gpt_output = "API not activated"
             citations = "NA-API"
             query_type = "small-talk"
             return (gpt_output, citations, query_type)
-        db_row = user_conv_db.get_from_message_id(msg_id)
-        query = db_row["message_english"]
-        if not query.endswith("?"):
-            query += "?"
-        print("Query: ", query)
-        relevant_chunks_string, relevant_update_chunks_string, citations, chunks = hierarchical_rag_retrieve(query, org_id, num_chunks)
+        
+        query_context = row_query["message_context"]
+        org_id = row_lt["org_id"]
+        if not query_context.endswith("?"):
+            query_context += "?"
+        print("Query: ", query_context)
+        relevant_chunks_string, relevant_update_chunks_string, citations, chunks = hierarchical_rag_retrieve(query_context, org_id, num_chunks)
         logger.add_log(
             sender_id="bot",
             receiver_id="bot",
             message_id=None,
             action_type="get_citations",
-            details={"query": query, "chunks": chunks, "transaction_id": db_row["message_id"]},
+            details={"query": query_context, "chunks": chunks, "transaction_id": row_query["message_id"]},
             timestamp=datetime.now(),
         )
         relevant_chunks_tuple = (relevant_chunks_string, relevant_update_chunks_string)
-        # take all non empty conversations 
-        # all_conversations = user_conv_db.get_all_user_conv(db_row["user_id"])
-        conversation_string = ""
-        # "\n".join(
-        #     [
-        #         row["query"] + "\n" + row["response"]
-        #         for row in all_conversations
-        #         if row["response"]
-        #     ][-3:]
-        # )
-        system_prompt = self.llm_prompts["answer_query"]
-        # print("Relevant chunks: ", relevant_chunks_tuple[0])
-        # print("Relevant update chunks: ", relevant_chunks_tuple[1])
-        # print("Citaitons: ", citations)
+        
+        system_prompt = self.llm_prompts["answer_query"]["general"]
+        lang_specific_prompt = self.llm_prompts["answer_query"][row_lt["user_language"]]
+        system_prompt = system_prompt.replace("<lang_specific>", lang_specific_prompt)
         prompt = hierarchical_rag_augment(
-            conversation_string,
             relevant_chunks_tuple,
             system_prompt, 
-            query
+            query = row_query["message_context"],
+            query_type= row_query["query_type"],
+            user_context=row_lt            
         )
         logger.add_log(
             sender_id="bot",
@@ -119,14 +108,10 @@ class KnowledgeBase:
             details={
                 "system_prompt": prompt[0]["content"],
                 "query_prompt": prompt[1]["content"],
-                "transaction_id": db_row["message_id"],
+                "transaction_id": row_query["message_id"],
             },
             timestamp=datetime.now(),
         )
-        gpt_output = None
-        bot_response = None
-        query_type = None
-        print(prompt)
         schema = {
             "name": "response_schema",
             "schema": {
@@ -138,17 +123,16 @@ class KnowledgeBase:
                 "required": ["response", "query_type"]
             }
         }
-        for _ in range(5):
+        for _ in range(3):
             try:
-                gpt_output = hierarchical_rag_generate(prompt,schema)
-                json_output = json.loads(gpt_output.strip())
-                bot_response = json_output["response"]
-                query_type = json_output["query_type"]
+                llm_output = hierarchical_rag_generate(prompt)
+                llm_output = self.parse_llm_output(llm_output)
                 break
             except Exception as e:
                 print("Error: ", e)
+                print(traceback.format_exc())
                 continue
-        print(bot_response)
+        
         logger.add_log(
             sender_id="gpt4",
             receiver_id="bot",
@@ -157,32 +141,13 @@ class KnowledgeBase:
             details={
                 "system_prompt": prompt[0]["content"],
                 "query_prompt": prompt[1]["content"],
-                "gpt_output": gpt_output,
-                "transaction_id": db_row["message_id"],
+                "gpt_output": llm_output,
+                "transaction_id": row_query["message_id"],
             },
             timestamp=datetime.now(),
         )
         print('Citaitons: ', citations)
-        if len(bot_response) < 700:
-            return (bot_response, citations, query_type)
-        else:
-            sumarize_response_prompt = self.get_summarize_long_response_prompt(bot_response)
-            gpt_output = hierarchical_rag_generate(sumarize_response_prompt)
-
-        logger.add_log(
-            sender_id="gpt4",
-            receiver_id="bot",
-            message_id=None,
-            action_type="answer_summary_response",
-            details={
-                "system_prompt": sumarize_response_prompt[0]["content"],
-                "query_prompt": sumarize_response_prompt[1]["content"],
-                "gpt_output": gpt_output,
-                "transaction_id": db_row["message_id"],
-            },
-            timestamp=datetime.now(),
-        )
-        return (gpt_output, citations, query_type)
+        return llm_output, citations
 
     def get_summarize_long_response_prompt(self, response):
         system_prompt = f"""Please summarise the given answer in 700 characters or less. Only return the summarized answer and nothing else.\n"""
@@ -192,6 +157,30 @@ class KnowledgeBase:
         prompt.append({"role": "user", "content": query_prompt})
         return prompt
         
+    def parse_llm_output(self, output):
+        result = {}
+
+        # Define regex patterns for each field
+        patterns = {
+            'response_en': r'<response_en>(.*?)</response_en>',
+            'response_src': r'<response_src>(.*?)</response_src>',
+            'related_questions_en': r'<related_questions_en>(.*?)</related_questions_en>',
+            'related_questions_src': r'<related_questions_src>(.*?)</related_questions_src>'
+        }
+
+        # Extract each field using regex
+        for key, pattern in patterns.items():
+            match = re.search(pattern, output, re.DOTALL)
+            if match:
+                result[key] = match.group(1).strip()
+
+        # Further parse related questions
+        if 'related_questions_en' in result:
+            result['related_questions_en'] = re.findall(r'<q-\d+>(.*?)</q-\d+>', result['related_questions_en'], re.DOTALL)
+        if 'related_questions_src' in result:
+            result['related_questions_src'] = re.findall(r'<q-\d+>(.*?)</q-\d+>', result['related_questions_src'], re.DOTALL)
+
+        return result
 
     def answer_query(
         self,

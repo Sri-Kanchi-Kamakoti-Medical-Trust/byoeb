@@ -8,7 +8,7 @@ import sys
 
 sys.path.append(local_path + "/src")
 from datetime import datetime
-from conversation_database import LoggingDatabase
+from app_logging import LoggingDatabase
 from messenger.whatsapp import WhatsappMessenger
 import os
 from medics_integration import OnboardMedics

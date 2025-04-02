@@ -4,7 +4,7 @@ local_path = os.path.join(os.environ['APP_PATH'], 'src')
 sys.path.append(local_path)
 from azure_language_tools import translator
 import json
-from conversation_database import LoggingDatabase
+from app_logging import LoggingDatabase
 import yaml
 
 

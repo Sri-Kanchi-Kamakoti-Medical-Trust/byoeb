@@ -10,13 +10,15 @@ class UserConvDB(BaseDB):
         super().__init__(config)
         self.collection = self.db[config['COSMOS_USER_CONV_COLLECTION']]
 
-    def insert_row(self,
+    def insert_user_query(self,
         user_id,
         message_id,
         message_type,
         message_source_lang,
         source_language,
-        message_translated,
+        message_english,
+        message_context,
+        query_type,
         audio_blob_path,
         message_timestamp):
 
@@ -26,8 +28,48 @@ class UserConvDB(BaseDB):
             'message_type': message_type,
             'message_source_lang': message_source_lang,
             'source_language': source_language,
-            'message_english': message_translated,
+            'message_english': message_english,
+            'message_context': message_context,
+            'query_type': query_type,
             'audio_blob_path': audio_blob_path,
+            'message_timestamp': message_timestamp
+        }
+        db_id = self.collection.insert_one(user_conv)
+        return db_id
+    
+    def insert_onboarding_response(self,
+        user_id,
+        message_id,
+        message_type,
+        message_source_lang,
+        source_language,
+        message_english,
+        message_timestamp):
+        user_conv = {
+            'user_id': user_id,
+            'message_id': message_id,
+            'message_type': message_type,
+            'message_source_lang': message_source_lang,
+            'source_language': source_language,
+            'message_english': message_english,
+            'message_timestamp': message_timestamp
+        }
+        db_id = self.collection.insert_one(user_conv)
+        return db_id    
+
+    def insert_lang_poll_response(self,
+        user_id,
+        message_id,
+        message_type,
+        message_source_lang,
+        source_language,
+        message_timestamp):
+        user_conv = {
+            'user_id': user_id,
+            'message_id': message_id,
+            'message_type': message_type,
+            'message_source_lang': message_source_lang,
+            'source_language': source_language,
             'message_timestamp': message_timestamp
         }
         db_id = self.collection.insert_one(user_conv)
