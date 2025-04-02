@@ -125,8 +125,6 @@ class WhatsappResponder(BaseResponder):
                 reply_to_msg_id=msg_id,
             )
             return
-        if self.check_expiration(row_lt):
-            return
 
 
         unsupported_types = ["image", "document", "video", "location", "contacts"]
@@ -268,32 +266,23 @@ class WhatsappResponder(BaseResponder):
         return
 
     def check_expiration(self, row_lt):
-        # if row_lt.get("is_expired", False):
-        #     message_text = "Your account has expired. Please contact your admin."
-        #     source_lang = row_lt["user_language"]
-        #     text = self.azure_translate.translate_text(
-        #         message_text, "en", source_lang, self.logger
-        #     )
-        #     self.messenger.send_message(row_lt['whatsapp_id'], text, None)
-        #     return True
-        # else:
-        #     return False
         patient_surgery_date = row_lt.get("patient_surgery_date", None)
         if patient_surgery_date is None:
             return False
         
-        patient_surgery_date = datetime.strptime(patient_surgery_date, "%Y-%m-%d")
+        import pandas as pd
+        patient_surgery_date = pd.to_datetime(patient_surgery_date)
+        patient_surgery_date = datetime.strptime(str(patient_surgery_date), "%Y-%m-%d %H:%M:%S")
 
         if (datetime.now() - patient_surgery_date).days > 30:
             return True
         return False
     
     def handle_expired_user_message(self, msg_object, row_lt):
-        message_text = "Your account has expired. Please contact the hospital in case of any queries."
-        source_lang = row_lt["user_language"]
-        text = self.azure_translate.translate_text(
-            message_text, "en", source_lang, self.logger
-        )
+        message_text = self.template_messages["access_expiration"]["en"]
+        message_text = message_text.replace("<phone_number>", self.unit_contact["phone_number"][row_lt['org_id']])
+        source_lang = self.template_messages["access_expiration"][row_lt['user_language']]
+        text = source_lang.replace("<phone_number>", self.unit_contact["phone_number"][row_lt['org_id']])
         self.messenger.send_message(row_lt['whatsapp_id'], text, msg_object["id"])
         return
         
