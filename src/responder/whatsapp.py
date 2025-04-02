@@ -279,11 +279,81 @@ class WhatsappResponder(BaseResponder):
         return False
     
     def handle_expired_user_message(self, msg_object, row_lt):
+
+        # Handle expired user message by logging information and recording in database
+        msg_id = msg_object["id"]
+        from_number = msg_object["from"]
+        msg_type = msg_object["type"]
+
+        if msg_type == "text" or msg_type == "interactive":
+            blob_name = None
+            if msg_type == "text":
+                message_text = msg_object["text"]["body"]
+            else:
+                if msg_object["interactive"]["type"] == "button_reply":
+                    message_text = f"{msg_object['interactive']['button_reply']['id']}: {msg_object['interactive']['button_reply']['title']}"
+                elif msg_object["interactive"]["type"] == "list_reply":
+                    message_text = f"{msg_object['interactive']['list_reply']['id']}: {msg_object['interactive']['list_reply']['title']} {msg_object['interactive']['list_reply']['description']}"
+        elif msg_type == "audio":
+            audio_input_file = "test_audio_input.ogg"
+            audio_output_file = "test_audio_output.aac"
+            utils.remove_extra_voice_files(audio_input_file, audio_output_file)
+            self.messenger.download_audio(msg_object, audio_input_file)
+            subprocess.call(
+                ["ffmpeg", "-i", audio_input_file, audio_input_file[:-3] + "wav"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            connect_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING").strip()
+            blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+            container_name = self.config["AZURE_BLOB_CONTAINER_NAME"].strip()
+
+            blob_name = str(datetime.now()) + "_" + str(row_lt['whatsapp_id']) + ".ogg"
+            blob_client = blob_service_client.get_blob_client(
+                container=container_name, blob=blob_name
+            )
+            with open(file=audio_input_file, mode="rb") as data:
+                blob_client.upload_blob(data)
+            
+            message_text = self.azure_translate.speech_to_text(audio_input_file[:-3] + "wav", row_lt['user_language'], self.logger)    
+        
+        message_english = self.azure_translate.translate_text(
+            message_text, row_lt['user_language'], "en", self.logger
+        )
+        
+        self.user_conv_db.insert_user_query(
+            user_id=row_lt['user_id'],
+            message_id=msg_id,
+            message_type=msg_type,
+            message_source_lang=message_text,
+            source_language=row_lt['user_language'],
+            message_english=message_english,
+            message_context={},
+            query_type="expired_access",
+            audio_blob_path=blob_name,
+            message_timestamp=datetime.now()
+        )
+
         message_text = self.template_messages["access_expiration"]["en"]
         message_text = message_text.replace("<phone_number>", self.unit_contact["phone_number"][row_lt['org_id']])
         source_lang = self.template_messages["access_expiration"][row_lt['user_language']]
         text = source_lang.replace("<phone_number>", self.unit_contact["phone_number"][row_lt['org_id']])
         self.messenger.send_message(row_lt['whatsapp_id'], text, msg_object["id"])
+        
+        self.bot_conv_db.insert_row(
+            receiver_id=row_lt['user_id'],
+            message_type="access_expiration",
+            message_id=msg_object["id"],
+            audio_message_id=None,
+            message_source_lang=text,
+            message_language=row_lt['user_language'],
+            message_english=message_text,
+            reply_id=None,
+            citations=None,
+            message_timestamp=datetime.now(),
+            transaction_message_id=msg_object["id"],
+        )
+        
         return
         
 
