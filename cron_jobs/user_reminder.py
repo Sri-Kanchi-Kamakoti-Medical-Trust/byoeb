@@ -54,7 +54,7 @@ for patient in tqdm(all_patients, total=len(all_patients), desc="Processing pati
                 try:
                     onboarding_datetime = datetime.datetime.strptime(onboarding_ts, "%Y-%m-%d %H:%M:%S")
                 except ValueError:
-                    logger.log_error(f"Could not parse timestamp {onboarding_ts} for user {user_id}")
+                    print(f"Could not parse timestamp {onboarding_ts} for user {user_id}")
                     continue
         else:
             onboarding_datetime = onboarding_ts
