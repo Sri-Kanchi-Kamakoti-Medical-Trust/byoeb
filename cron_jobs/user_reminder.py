@@ -76,9 +76,9 @@ for patient in tqdm(all_patients, total=len(all_patients), desc="Processing pati
             except ValueError:
                 # Try different format if isoformat fails
                 try:
-                    surgery_datetime = datetime.datetime.strptime(patient_surgery_date, "%Y-%m-%d %H:%M:%S")
-                except ValueError:
-                    logger.log_error(f"Could not parse timestamp {patient_surgery_date} for user {user_id}")
+                    surgery_datetime = datetime.datetime.strptime(patient_surgery_date, "%d-%m-%Y")
+                except:
+                    print(f"Could not parse surgery date {patient_surgery_date} for user {user_id}")
                     continue
         else:
             surgery_datetime = patient_surgery_date
