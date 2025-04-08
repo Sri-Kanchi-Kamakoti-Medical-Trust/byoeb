@@ -85,11 +85,18 @@ onboarding_responses_df = onboarding_responses_df.drop_duplicates(subset=['user_
 lang_poll_responses_df = lang_poll_responses_df.drop_duplicates(subset=['user_id'], keep='last')
 
 onboarding_responses_df['is_yes'] = onboarding_responses_df['message_source_lang'].apply(lambda x: x in yes_responses)
+onboarding_responses_df['is_no'] = onboarding_responses_df['message_source_lang'].apply(lambda x: x not in yes_responses)
+
+#assert that the sum of is_yes and is_no is equal to the number of rows
+assert onboarding_responses_df['is_yes'].sum() + onboarding_responses_df['is_no'].sum() == len(onboarding_responses_df)
 
 
 # EMAIL STAT
 print(f"Number of people who said yes to onboarding: {onboarding_responses_df['is_yes'].sum()}")
 print(f"Number of people who said no to onboarding: {len(onboarding_responses_df) - onboarding_responses_df['is_yes'].sum()}")
+
+onboarding_yes_stats = ["Number of people who said yes to onboarding"] + get_org_wise_stats(onboarding_responses_df, orgs, 'message_timestamp', 'is_yes')
+onboarding_no_stats = ["Number of people who said no to onboarding"] + get_org_wise_stats(onboarding_responses_df, orgs, 'message_timestamp', 'is_no')
 
 
 user_conv_df_merged = user_conv_df.merge(users_df, left_on='user_id', right_on='user_id', how='inner')
@@ -175,6 +182,9 @@ stats = [["Description"] + [unit_info[org] for org in orgs]]
 patient_stats = ["Number of patients"] + get_org_wise_stats(users_df, orgs, 'timestamp')
 stats.append(patient_stats)
 
+stats.append(onboarding_yes_stats)
+stats.append(onboarding_no_stats)
+
 query_df = user_query_df[user_query_df['query_type'] != 'small-talk']
 
 query_stats = ["Number of queries"] + get_org_wise_stats(query_df, orgs, 'message_timestamp')
@@ -231,7 +241,7 @@ email_list = eval(secret.value)
 
 msg = MIMEMultipart('alternative')
 msg['Subject'] = f"CataractBot usage stats for {date_today}"
-msg['From'] = "sankarabotmsr@gmail.com"
+msg['From'] = os.environ['LOGGING_EMAIL_ID'].strip()
 msg['To'] = ", ".join(email_list)
 
 # Attach the HTML message
@@ -244,5 +254,5 @@ with open('email.html', 'w') as file:
 
 print("Sending email to: ", email_list)
 for receiver in email_list:
-    s.sendmail("sankarabotmsr@gmail.com", receiver, msg.as_string())
+    s.sendmail(os.environ['LOGGING_EMAIL_ID'].strip(), receiver, msg.as_string())
 s.quit()
