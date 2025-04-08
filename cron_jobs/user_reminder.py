@@ -68,8 +68,8 @@ for patient in tqdm(all_patients, total=len(all_patients), desc="Processing pati
         # Calculate days since onboarding
         days_since_onboarding = (datetime.datetime.now() - onboarding_datetime).days
         
-        # Send reminder if it's been 4 days since onboarding
-        if days_since_onboarding == 4:
+        # Send reminder if it's been 1 day since onboarding
+        if days_since_onboarding == 1:
             send_reminder = True
             reminder_type = "onboarding_reminder"
 
