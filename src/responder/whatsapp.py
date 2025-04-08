@@ -206,6 +206,11 @@ class WhatsappResponder(BaseResponder):
             message_timestamp=datetime.now(),
         )
 
+        self.user_db.add_or_update_onboarding_response(
+            user_id=row_lt['user_id'],
+            onboarded=True if message_english == "Yes" else False,
+        )
+
         return
     
     def language_onboarding_response(self, msg_object, row_lt):

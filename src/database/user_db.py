@@ -110,6 +110,20 @@ class UserDB(BaseDB):
     def clear_cache(self):
         cache.clear()
 
+    def add_or_update_onboarding_response(self, user_id, onboarded):
+        #True -> Yes, False -> No, None -> No response
+        self.collection.update_one(
+            {'user_id': user_id},
+            {'$set': {
+                'onboarded': onboarded
+            }},
+            upsert=True
+        )
+
+    def get_all_patients(self):
+        patients = list(self.collection.find({'user_type': 'Patient'}))
+        return patients
+
     def get_all_users(self):
         users = list(self.collection.find())
         return users

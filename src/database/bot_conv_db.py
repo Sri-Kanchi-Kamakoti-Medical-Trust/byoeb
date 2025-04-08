@@ -41,7 +41,6 @@ class BotConvDB(BaseDB):
 
         db_id = self.collection.insert_one(bot_conv)
         return db_id
-                        
 
     def get_from_message_id(self, message_id):
         bot_conv = self.collection.find_one({'message_id': message_id})
