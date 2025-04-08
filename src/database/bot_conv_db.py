@@ -46,6 +46,14 @@ class BotConvDB(BaseDB):
         bot_conv = self.collection.find_one({'message_id': message_id})
         return bot_conv
     
+    def update_poll_response(self, db_id, poll_response):
+        self.collection.update_one(
+            {'_id': db_id},
+            {'$set': {
+                'poll_response': poll_response
+            }}
+        )
+    
     def find_with_transaction_id(self, transaction_message_id, message_type=None):
         if message_type:
             bot_conv = self.collection.find_one({'$and': [{'transaction_message_id': transaction_message_id}, {'message_type': message_type}]})

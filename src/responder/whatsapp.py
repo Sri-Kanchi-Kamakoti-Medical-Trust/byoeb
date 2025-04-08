@@ -446,10 +446,27 @@ class WhatsappResponder(BaseResponder):
     def handle_audio_idk_flow(self, msg_obj, row_lt):
         idk_options = self.template_messages["idk"][f"{row_lt['user_language']}"]["audio_options"]
         msg = msg_obj["interactive"]["button_reply"]["title"]
+        msg_id = msg_obj["id"]
+        bot_conv = self.bot_conv_db.get_from_message_id(msg_obj["context"]["id"])
+        row_query = self.user_conv_db.get_from_message_id(bot_conv["reply_id"])
+
+        previous_poll_response = bot_conv.get("poll_response", None)
+        if previous_poll_response is not None:
+            text = "You have already responded to this poll."
+            text_src = self.azure_translate.translate_text(
+                text, "en", row_lt['user_language'], self.logger
+            )
+            self.messenger.send_message(
+                row_lt['whatsapp_id'], text_src, msg_id
+            )
+            return
+        
+        self.bot_conv_db.update_poll_response(
+            bot_conv["_id"],
+            msg_obj["interactive"]["button_reply"]["id"]
+        )
+        
         if msg in idk_options[0]:
-            print("Reply id: ", msg_obj["context"]["id"])
-            bot_conv = self.bot_conv_db.get_from_message_id(msg_obj["context"]["id"])
-            row_query = self.user_conv_db.get_from_message_id(bot_conv["reply_id"])
             sent_msg_id, audio_message_id = self.send_idk_raise(row_lt, row_query, row_query["message_type"])
             query_type = row_query["query_type"]
             expert_type = self.category_to_expert[query_type]
@@ -634,6 +651,22 @@ class WhatsappResponder(BaseResponder):
         bot_response = self.bot_conv_db.get_from_message_id(reply_id)
         row_query = self.user_conv_db.get_from_message_id(bot_response["transaction_message_id"])
 
+        previous_poll_response = bot_response.get("poll_response", None)
+        if previous_poll_response is not None:
+            text = "You have already responded to this poll."
+            text_src = self.azure_translate.translate_text(
+                text, "en", row_lt['user_language'], self.logger
+            )
+            self.messenger.send_message(
+                row_lt['whatsapp_id'], text_src, msg_id
+            )
+            return
+
+        self.bot_conv_db.update_poll_response(
+            bot_response["_id"],
+            msg_object["interactive"]["button_reply"]["id"]
+        )
+
         if msg_object["interactive"]["button_reply"]["id"] == "PREVERIFIED_YES":
             text = self.template_messages["previously_verified_answer"]["en"]["options_yes"]
             text_src = self.template_messages["previously_verified_answer"][row_lt['user_language']]["options_yes"]
@@ -646,6 +679,7 @@ class WhatsappResponder(BaseResponder):
             self.messenger.send_suggestions(
                 row_lt['whatsapp_id'], text_src, list_title, questions_source, msg_id
             )
+            self.user_conv_db.mark_resolved(row_query["_id"])
         elif msg_object["interactive"]["button_reply"]["id"] == "PREVERIFIED_NO":
             if row_query.get("resolved", False):
                 return
