@@ -36,7 +36,13 @@ for patient in tqdm(all_patients, total=len(all_patients), desc="Processing pati
     whatsapp_id = patient["whatsapp_id"]
     user_language = patient["user_language"]
 
-    if not patient.get("onboarded", False):
+    if patient.get("onboarded", None) == False:
+        # If user is not onboarded, skip this patient
+        continue
+
+    activity_ts = patient.get("activity_timestamp", None)
+    if activity_ts == None:
+        # If activity timestamp is None, skip this patient
         continue
 
     onboarding_ts = patient.get("timestamp", None)
