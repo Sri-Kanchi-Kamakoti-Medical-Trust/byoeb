@@ -12,14 +12,14 @@ from knowledge_base import KnowledgeBase
 from app_logging import (
     LoggingDatabase,
 )
-from database import UserDB, UserConvDB, BotConvDB, ExpertConvDB, UserRelationDB, FAQDB
+from database import UserDB, UserConvDB, BotConvDB, ExpertConvDB, UserRelationDB
 from messenger.whatsapp import WhatsappMessenger
 import utils
 from utils import remove_extra_voice_files
 from onboard import onboard_wa_helper
 from responder.base import BaseResponder
 from azure.identity import DefaultAzureCredential
-from pre_verified import PreverifiedClient
+from azure_search import PreverifiedClient
 from llm_utils import QueryRewriter
 
 IDK = "I do not know the answer to your question"
