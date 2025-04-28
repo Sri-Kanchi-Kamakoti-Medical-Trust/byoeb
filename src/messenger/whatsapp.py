@@ -9,12 +9,7 @@ sys.path.append(os.path.dirname(__file__))
 src_path = os.path.join(os.environ["APP_PATH"], "src")
 
 import requests
-from knowledge_base import KnowledgeBase
 from datetime import datetime
-import numpy as np
-from azure_language_tools import translator
-from utils import remove_extra_voice_files
-import subprocess
 from messenger.base import BaseMessenger
 
 @dataclass

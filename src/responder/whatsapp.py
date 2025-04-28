@@ -36,7 +36,7 @@ class WhatsappResponder(BaseResponder):
         self.user_relation_db = UserRelationDB(config)
         self.preverified_client = PreverifiedClient(
             os.environ["AZURE_SEARCH_ENDPOINT"],
-            os.environ["AZURE_SEARCH_INDEX_NAME"]
+            os.environ["PREVERIFIED_SEARCH_INDEX_NAME"]
         )
         self.query_rewriter = QueryRewriter()
         self.user_conv_db = UserConvDB(config)
@@ -113,11 +113,11 @@ class WhatsappResponder(BaseResponder):
 
 
         if self.user_conv_db.get_from_message_id(msg_id) or self.bot_conv_db.get_from_message_id(msg_id) or self.expert_conv_db.get_from_message_id(msg_id):
-            print("Message already processed", datetime.now())
+            # print("Message already processed", datetime.now())
             return
 
         user_type, row_lt = self.check_user_type(from_number)
-        print("User type: ", user_type, "Row: ", row_lt)
+        # print("User type: ", user_type, "Row: ", row_lt)
         if user_type is None:
             self.messenger.send_message(
                 from_number,
@@ -153,7 +153,7 @@ class WhatsappResponder(BaseResponder):
         return
 
     def handle_unsupported_msg_types(self, msg_object, row_lt):
-        print("Handling unsupported message types")
+        # print("Handling unsupported message types")
         msg_id = msg_object["id"]
         self.logger.add_log(
             sender_id=row_lt['whatsapp_id'],
@@ -363,7 +363,7 @@ class WhatsappResponder(BaseResponder):
         
 
     def handle_language_poll_response(self, msg_object, row_lt):
-        print("Handling language poll response")
+        # print("Handling language poll response")
         msg_id = msg_object["id"]
         lang_detected = msg_object["interactive"]["list_reply"]["id"][5:-1].lower()
             
@@ -389,7 +389,7 @@ class WhatsappResponder(BaseResponder):
         )
         audio_file = os.path.join(os.environ['DATA_PATH'], audio_file)
         self.messenger.send_audio(audio_file, row_lt['whatsapp_id'])
-        print("Sending language poll")
+        # print("Sending language poll")
         self.messenger.send_language_poll(
             row_lt['whatsapp_id'],
             self.language_prompts[lang_detected],
@@ -427,7 +427,6 @@ class WhatsappResponder(BaseResponder):
         sent_msg_id = self.messenger.send_message_with_options(
             row_lt['whatsapp_id'], idk_message, ["Audio_idk_raise", "Audio_idk_reask"], options, msg_id
         )
-        print("Sent msg id: ", sent_msg_id)
         self.bot_conv_db.insert_row(
             receiver_id=row_lt['user_id'],
             message_type="query_response",
@@ -775,8 +774,7 @@ class WhatsappResponder(BaseResponder):
         return
 
     def answer_query_text(self, msg_id, row_query, row_lt):
-        print("Answering query")
-
+        
         if self.config['PREVERIFIED'] and row_query['query_type'] != 'small-talk':
             pre_verified_response = self.preverified_client.find_closest_preverified_pair(
                 query=row_query["message_context"],
@@ -856,7 +854,6 @@ class WhatsappResponder(BaseResponder):
         if self.check_expiration(row_lt):
             self.handle_expired_user_message(msg_object, row_lt)
             return
-        print("Handling user response")
         msg_type = msg_object["type"]
         user_id = row_lt['user_id'] 
         msg_id = msg_object["id"]
@@ -888,7 +885,6 @@ class WhatsappResponder(BaseResponder):
             and msg_object["interactive"]["type"] == "list_reply"
             and msg_object["interactive"]["list_reply"]["id"][:5] == "QUEST"
         ):
-            print("Handling text message", msg_type)
             blob_name = None
             if msg_type == "interactive":
                 msg_text = msg_object["interactive"]["list_reply"]["description"]
@@ -1050,8 +1046,7 @@ class WhatsappResponder(BaseResponder):
 
     def handle_response_expert(self, msg_object, row_lt):
         msg_type = msg_object["type"]
-        print(msg_type)
-
+        
         if (
             msg_type == "interactive"
             and msg_object["interactive"]["type"] == "button_reply"
@@ -1360,9 +1355,8 @@ class WhatsappResponder(BaseResponder):
             )
             return
             
-        print("handling correction")
+        # print("handling correction")
         if poll is None or (poll["message_type"] != "poll_primary" and poll["message_type"] != "poll_escalated"):
-            print(poll)
             self.messenger.send_message(
                 msg_object["from"],
                 self.template_messages["expert_verification"]["expert"]["en"]["notag"],
@@ -1394,7 +1388,6 @@ class WhatsappResponder(BaseResponder):
         row_response = self.bot_conv_db.find_with_transaction_id(transaction_message_id, "query_response")
 
         poll_responses = self.expert_conv_db.get_from_transaction_message_id(transaction_message_id, "poll_response")
-        print(poll_responses)
         if len(poll_responses) == 0:
             self.messenger.send_message(
                 expert_row_lt['whatsapp_id'],
