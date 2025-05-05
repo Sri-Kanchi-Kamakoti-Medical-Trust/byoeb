@@ -14,8 +14,6 @@ from flask import Flask, request
 from time import sleep
 import traceback
 
-__import__("pysqlite3")
-sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 sys.path.append("src")
 from app_logging import LoggingDatabase
 from responder import WhatsappResponder

@@ -173,3 +173,4 @@ medics_test.py
 register_template.py
 scratch/
 email.html
+kb_data.jsonl
