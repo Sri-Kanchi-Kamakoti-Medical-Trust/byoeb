@@ -879,6 +879,8 @@ class WhatsappResponder(BaseResponder):
         ):
             self.handle_preverified_response(msg_object, row_lt)
             return
+        
+        msg_text = None
 
         if msg_object.get("text") or (
             msg_object["type"] == "interactive"
