@@ -4,9 +4,11 @@ import sys
 import traceback
 import json
 import re
+import random
 from app_logging import (
     LoggingDatabase,
 )
+from azure_language_tools import translator
 from database import UserConvDB
 from typing import Any
 from utils import get_llm_response
@@ -27,12 +29,12 @@ class KnowledgeBase:
             os.environ["AZURE_SEARCH_ENDPOINT"],
             os.environ["KB_SEARCH_INDEX_NAME"],
         )
+        self.translator = translator()
         
         self.llm_prompts = json.load(open(os.path.join(os.environ["APP_PATH"], os.environ["DATA_PATH"], "llm_prompt.json")))
     
     def hierarchical_rag_answer_query(
         self,
-        user_conv_db: UserConvDB,
         row_query: dict[str, Any],
         logger: LoggingDatabase,
         row_lt: dict[str, Any],
@@ -66,7 +68,7 @@ class KnowledgeBase:
         if not query_context.endswith("?"):
             query_context += "?"
         print("Query: ", query_context)
-        relevant_chunks_string, relevant_update_chunks_string, citations, chunks = hierarchical_rag_retrieve(self.kb_client, query_context, org_id, num_chunks)
+        relevant_chunks_string, relevant_update_chunks_string, citations, chunks, related_questions = hierarchical_rag_retrieve(self.kb_client, query_context, org_id, num_chunks)
         logger.add_log(
             sender_id="bot",
             receiver_id="bot",
@@ -123,6 +125,23 @@ class KnowledgeBase:
             },
             timestamp=datetime.now(),
         )
+
+        # Fetch grounded related questions
+
+        llm_output["related_questions_en"] = []
+        llm_output["related_questions_src"] = []
+        random.shuffle(related_questions)
+        for i, question in enumerate(related_questions):
+            if i >= 3:
+                break
+            llm_output["related_questions_en"].append(question)
+
+        llm_output["related_questions_src"] = self.translator.translate_text_batch(
+            llm_output["related_questions_en"],
+            "en",
+            row_lt["user_language"],
+        )
+
         return llm_output, citations
 
     def get_summarize_long_response_prompt(self, response):
@@ -150,11 +169,12 @@ class KnowledgeBase:
             if match:
                 result[key] = match.group(1).strip()
 
-        # Further parse related questions
-        if 'related_questions_en' in result:
-            result['related_questions_en'] = re.findall(r'<q-\d+>(.*?)</q-\d+>', result['related_questions_en'], re.DOTALL)
-        if 'related_questions_src' in result:
-            result['related_questions_src'] = re.findall(r'<q-\d+>(.*?)</q-\d+>', result['related_questions_src'], re.DOTALL)
+        # not needed now, reading grounded questions from search client
+        # Further parse related questions 
+        # if 'related_questions_en' in result:
+        #     result['related_questions_en'] = re.findall(r'<q-\d+>(.*?)</q-\d+>', result['related_questions_en'], re.DOTALL)
+        # if 'related_questions_src' in result:
+        #     result['related_questions_src'] = re.findall(r'<q-\d+>(.*?)</q-\d+>', result['related_questions_src'], re.DOTALL)
 
         return result
 

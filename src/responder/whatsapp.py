@@ -688,7 +688,7 @@ class WhatsappResponder(BaseResponder):
     
     def generate_and_send_response(self, row_query, row_lt):
         llm_response, citations = self.knowledge_base.hierarchical_rag_answer_query(
-            self.user_conv_db, row_query, self.logger, row_lt
+            row_query, self.logger, row_lt
         )
         response = llm_response["response_en"]
 

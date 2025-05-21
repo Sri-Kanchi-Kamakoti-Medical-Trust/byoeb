@@ -4,7 +4,7 @@ import sys
 import yaml
 sys.path.append("src")
 from tqdm import tqdm
-from pre_verified import KnowledgeBaseClient
+from azure_search import KnowledgeBaseClient
 
 config_path = os.path.join(os.environ['APP_PATH'], 'config.yaml')
 with open(config_path) as file:
@@ -12,7 +12,7 @@ with open(config_path) as file:
 
 
 
-kb_data_path = 'kb_data.jsonl'
+kb_data_path = 'updated_kb_data.jsonl'
 
 def load_kb_data(file_path):
     kb_data = []
@@ -34,8 +34,9 @@ kb_client = KnowledgeBaseClient(
 
 print(f"Number of data chunks: {len(kb_data)}")
 
-for i, data in tqdm(enumerate(kb_data), total=len(kb_data)):
 
+for i, data in tqdm(enumerate(kb_data), total=len(kb_data)):
+    data["metadata"]['related_questions'] = [ item['question'] for item in data["metadata"]['related_questions'] ]
     kb_client.add_new_data_chunk(
         id = data['id'],
         kb_data = data,

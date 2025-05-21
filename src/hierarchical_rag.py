@@ -20,7 +20,7 @@ def hierarchical_rag_retrieve(kb_client, query, org_id, num_chunks=3):
     relevant_chunks_string = ""
     relevant_update_chunks_string = ""
     chunks = []
-
+    related_questions = []
     chunk1 = 0
     chunk2 = 0
     for i, chunk in enumerate(retrieved_chunks):
@@ -31,12 +31,13 @@ def hierarchical_rag_retrieve(kb_client, query, org_id, num_chunks=3):
             relevant_chunks_string += f"Chunk #{chunk1 + 1}\n{chunk['data_chunk']}\n\n"
             chunk1 += 1
         chunks.append((chunk["data_chunk"], chunk["metadata"]["source"].strip(), chunk["org_id"].strip()))
+        related_questions.extend((chunk["metadata"].get("related_questions", [])))
     
     citations: str = "\n".join(
         [ chunk["org_id"] + '-' + chunk["metadata"]["source"] for chunk in retrieved_chunks ]
     )
     
-    return relevant_chunks_string, relevant_update_chunks_string, citations, chunks
+    return relevant_chunks_string, relevant_update_chunks_string, citations, chunks, related_questions
 
 def hierarchical_rag_augment(retrieved_chunks, system_prompt, query, query_type, user_context):
     # Today's date is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n\
