@@ -89,7 +89,7 @@ df['ts'] = df['ts'].dt.tz_convert(None)  # Convert to naive datetime
 df = df[df['ts'] > (pd.to_datetime(datetime.now()) - pd.DateOffset(weeks=2))]
 print(df['ts'].min())
 
-doctors_for_onboarding = ['Umesh', 'Anand Balasubramaniam', 'Sowmya R', 'Vidhya C', 'Venkata Prabhalar Guduru', 'Macwana Palak Niranjan', 'M P Deepika', 'Polkampally Sirisha', 'Balam Pradeep', 'Neeraj Shah', 'Jaswant Singh', 'Amit Mohan', 'Visweswaran S', 'Surabhi Khandelwal']
+doctors_for_onboarding = ['Umesh', 'Anand Balasubramaniam', 'Sowmya R', 'Vidhya C', 'Venkata Prabhakar Guduru', 'Macwana Palak Niranjan', 'M P Deepika', 'Polkampally Sirisha', 'Balam Pradeep', 'Neeraj Shah', 'Jaswant Singh', 'Amit Mohan', 'Visweswaran S', 'Surabhi Khandelwal']
 
 # print(blr_df['operating_doctor'].value_counts())
 
