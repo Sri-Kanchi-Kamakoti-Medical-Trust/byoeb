@@ -131,11 +131,8 @@ class KnowledgeBase:
         llm_output["related_questions_en"] = []
         llm_output["related_questions_src"] = []
         random.shuffle(related_questions)
-        for i, question in enumerate(related_questions):
-            if i >= 3:
-                break
-            llm_output["related_questions_en"].append(question)
-
+        
+        llm_output["related_questions_en"] = related_questions[:3]
         llm_output["related_questions_src"] = self.translator.translate_text_batch(
             llm_output["related_questions_en"],
             "en",

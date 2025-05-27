@@ -12,6 +12,7 @@ from knowledge_base import KnowledgeBase
 from app_logging import (
     LoggingDatabase,
 )
+import random
 from database import UserDB, UserConvDB, BotConvDB, ExpertConvDB, UserRelationDB
 from messenger.whatsapp import WhatsappMessenger
 import utils
@@ -481,10 +482,8 @@ class WhatsappResponder(BaseResponder):
         expert_type = self.category_to_expert[row_query["query_type"]]
         expert_title = self.template_messages["expert_title"][row_lt['user_language']][expert_type]
         raise_message = raise_message.replace("<expert>", expert_title)
-        _, list_title, questions_source, _ = self.get_suggested_questions(
-            row_lt,
-            row_query,
-            IDK
+        _, list_title, questions_source, _ = self.get_related_questions(
+            row_lt
         )
         sent_msg_id = self.messenger.send_suggestions(
             row_lt['whatsapp_id'], raise_message, list_title, questions_source, row_query['message_id']
@@ -518,14 +517,7 @@ class WhatsappResponder(BaseResponder):
     def handle_small_talk_idk(self, row_lt, row_query):
         text = self.template_messages["idk"]["out_of_scope_or_smalltalk_text"]
         final_message = self.template_messages["idk"][f"{row_lt['user_language']}"]["out_of_scope_or_smalltalk_text"]
-        _, list_title, questions_source, _ = self.get_suggested_questions(
-            row_lt,
-            row_query,
-            IDK
-        )
-        # sent_msg_id = self.messenger.send_message(
-        #     row_lt['whatsapp_id'], final_message, row_query["message_id"]
-        # )
+        _, list_title, questions_source, _ = self.get_related_questions(row_lt)
         sent_msg_id = self.messenger.send_suggestions(
             row_lt['whatsapp_id'], final_message, list_title, questions_source, row_query['message_id']
         )
@@ -559,7 +551,7 @@ class WhatsappResponder(BaseResponder):
 
         # get related questions
         if response.startswith(IDK) or row_query["query_type"] == "small-talk":
-            title, list_title, questions_source, questions_en = self.get_suggested_questions(row_lt, row_query, response)
+            title, list_title, questions_source, questions_en = self.get_related_questions(row_lt)
         else:
             title, list_title = (
                 self.onboarding_questions[row_lt["user_language"]]["title"],
@@ -568,6 +560,9 @@ class WhatsappResponder(BaseResponder):
             questions_en = llm_response["related_questions_en"]
             questions_source = llm_response["related_questions_src"]
 
+            self.user_db.add_or_update_related_qns(
+                row_lt['user_id'], questions_en)
+            
 
         if len(questions_en) == 0:
             return self.send_query_response(msg_type, msg_id, response_source, row_lt)
@@ -640,6 +635,10 @@ class WhatsappResponder(BaseResponder):
             citations="preverified",
             message_timestamp=datetime.now(),
             transaction_message_id=msg_id,
+            metadata={
+                "preverified_id": pre_verified_response["id"],
+                "related_chunk_ids": pre_verified_response["metadata"]["related_chunk_ids"],
+            }
         )
         return
 
@@ -665,15 +664,15 @@ class WhatsappResponder(BaseResponder):
             bot_response["_id"],
             msg_object["interactive"]["button_reply"]["id"]
         )
-
         if msg_object["interactive"]["button_reply"]["id"] == "PREVERIFIED_YES":
             text = self.template_messages["previously_verified_answer"]["en"]["options_yes"]
             text_src = self.template_messages["previously_verified_answer"][row_lt['user_language']]["options_yes"]
-            title, list_title, questions_source, questions_en = self.get_suggested_questions(
-                row_lt,
-                row_query,
-                bot_response["message_english"]
+            title, list_title, questions_source, questions_en = self.get_related_questions(
+                row_lt, bot_response['metadata']['related_chunk_ids']
             )
+            self.user_db.add_or_update_related_qns(
+                row_lt['user_id'], questions_en)
+            
             self.user_conv_db.mark_resolved(row_query["_id"])
             self.messenger.send_suggestions(
                 row_lt['whatsapp_id'], text_src, list_title, questions_source, msg_id
@@ -787,41 +786,25 @@ class WhatsappResponder(BaseResponder):
         self.generate_and_send_response(row_query, row_lt)
         return
 
-    def get_suggested_questions(self, row_lt, row_query, response):
+    def get_related_questions(self, row_lt, chunk_ids=None):
         source_lang = row_lt["user_language"]
-        query = row_query["message_source_lang"]
-        query_type = row_query["query_type"]
-        if (
-            (not response.strip().startswith(IDK))
-            and query_type != "small-talk"
-        ):
-            questions_en = self.knowledge_base.follow_up_questions(
-                query, response, row_lt['user_type'], self.logger
-            )
-            questions_source = []
-            for question in questions_en:
-                question_source = self.azure_translate.translate_text(
-                    question, "en", source_lang, self.logger
-                )
-                questions_source.append(question_source)
-            title, list_title = (
-                self.onboarding_questions[source_lang]["title"],
-                self.onboarding_questions[source_lang]["list_title"],
-            )
-            self.user_db.add_or_update_related_qns(row_lt['user_id'], questions_en)
-
-        else:
+        if chunk_ids is not None:
+            all_questions = []
+            for chunk_id in chunk_ids:
+                chunk = self.knowledge_base.kb_client.get_document(chunk_id)
+                all_questions.extend((chunk["metadata"].get("related_questions", [])))
+            random.shuffle(all_questions)
+            questions_en = all_questions[:3]
+        else:    
             questions_en = list(row_lt['related_qns'])
-            questions_source = []
-            for question in questions_en:
-                question_source = self.azure_translate.translate_text(
-                    question, "en", source_lang, self.logger
-                )
-                questions_source.append(question_source)
-            title, list_title = (
-                self.onboarding_questions[source_lang]["title"],
-                self.onboarding_questions[source_lang]["list_title"],
-            )
+    
+        questions_source = self.azure_translate.translate_text_batch(
+            questions_en, "en", source_lang
+        )
+        title, list_title = (
+            self.onboarding_questions[source_lang]["title"],
+            self.onboarding_questions[source_lang]["list_title"],
+        )
 
         return title, list_title, questions_source, questions_en
 
@@ -829,7 +812,7 @@ class WhatsappResponder(BaseResponder):
 
         source_lang = row_lt["user_language"]
         
-        title, list_title, questions_source, next_questions = self.get_suggested_questions(row_lt, row_query, gpt_output)
+        title, list_title, questions_source, next_questions = self.get_related_questions(row_lt)
         
         suggested_ques_msg_id = self.messenger.send_suggestions(
             row_lt['whatsapp_id'], title, list_title, questions_source
@@ -996,7 +979,7 @@ class WhatsappResponder(BaseResponder):
         else:
             message_en = self.template_messages["idk"]["en"]["incomprehensible_text"]
             message_src = self.template_messages["idk"][row_lt['user_language']]["incomprehensible_text"]
-        questions_src = self.get_suggested_questions(row_lt, row_query, IDK)
+        questions_src = self.get_related_questions(row_lt)
         title, list_title, questions_src, questions_en = questions_src
         sent_msg_id = self.messenger.send_suggestions(
             row_lt['whatsapp_id'], message_src, list_title, questions_src, msg_id
@@ -1027,7 +1010,7 @@ class WhatsappResponder(BaseResponder):
             message_en = self.template_messages["idk"]["en"]["out_of_scope_or_smalltalk_text"]
             message_src = self.template_messages["idk"][row_lt['user_language']]["out_of_scope_or_smalltalk_text"]
         
-        title, list_title, questions_src, questions_en = self.get_suggested_questions(row_lt, row_query, IDK)
+        title, list_title, questions_src, questions_en = self.get_related_questions(row_lt)
         sent_msg_id = self.messenger.send_suggestions(
             row_lt['whatsapp_id'], message_src, list_title, questions_src, msg_id
         )
@@ -1220,11 +1203,7 @@ class WhatsappResponder(BaseResponder):
                 text = text.replace("<phone_number>", self.unit_contact["phone_number"][user_row_lt["org_id"]])
                 final_message = self.template_messages["idk"][f"{user_row_lt['user_language']}"]["expertsaysyes"]
                 final_message = final_message.replace("<phone_number>", self.unit_contact["phone_number"][user_row_lt["org_id"]])
-                # _, list_title, questions_source, _ = self.get_suggested_questions(
-                #     user_row_lt,
-                #     row_query,
-                #     IDK
-                # )
+                
                 sent_msg_id = self.messenger.send_message(
                     user_row_lt['whatsapp_id'], final_message, row_query["message_id"],
                 )

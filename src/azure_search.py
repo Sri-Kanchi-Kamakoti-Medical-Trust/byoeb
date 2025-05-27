@@ -40,34 +40,46 @@ class PreverifiedClient:
         id: str,
         question: str,
         answer: str,
+        related_chunk_ids: list = None,
         org_id: str = None,
     ):
-        question_answer = f"{question} {answer}"
-        question_vector, question_answer_vector = self.openai_embedding_client.get_embedding_batch([question, question_answer])
-        self.client.upload_documents(documents=[{
+        question_vector = self.openai_embedding_client.get_embedding(question)
+        self.client.merge_or_upload_documents(documents=[{
             "id": id,
             "question": question,
-            "question_answer": question_answer,
             "question_vector": question_vector,
-            "question_answer_vector": question_answer_vector,
-            "metadata": {"answer": answer},
+            "metadata": {
+                "answer": answer,
+                "related_chunk_ids": related_chunk_ids if related_chunk_ids else [],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
             "org_id": org_id,
         }])
 
-    def add_new_qa_batch(self, qa_pairs):
+    def add_new_qa_batch(self,
+        ids: list,
+        questions: list,
+        answers: list,
+        related_chunk_ids_list: list = None,
+        org_ids: list = None):
         documents = []
-        for i, (question, answer) in enumerate(qa_pairs):
-            question_answer = f"{question} {answer}"
-            question_vector, question_answer_vector = self.openai_embedding_client.get_embedding_batch([question, question_answer])
+        # Get embeddings for all questions in a single batch request
+        question_vectors = self.openai_embedding_client.get_embedding_batch(questions)
+        
+        for i, (id, question, answer, question_vector) in enumerate(zip(ids, questions, answers, question_vectors)):
             documents.append({
-                "id": str(i),
+                "id": id,
                 "question": question,
-                "question_answer": question_answer,
                 "question_vector": question_vector,
-                "question_answer_vector": question_answer_vector,
-                "metadata": {"answer": answer},
+                "metadata": {
+                    "answer": answer,
+                    "related_chunk_ids": related_chunk_ids_list[i] if related_chunk_ids_list else [],
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+                "org_id": org_ids[i] if org_ids else None,
             })
-        self.client.upload_documents(documents=documents)
+        
+        self.client.merge_or_upload_documents(documents=documents)
 
     def hybrid_search(self, query, org_id, k=10):
         vector_query = VectorizableTextQuery(
@@ -105,6 +117,40 @@ class PreverifiedClient:
             top=k
         )
         return [doc for doc in result]
+    
+    def anonymyze_qa_pair(self, question, answer):
+        system_prompt = self.llm_prompts['preverified_anonymize']
+        query_prompt = f"""<query>{question}</query>\n<response>{answer}</response>\n"""
+        prompt = [
+            {
+                "role": "system",
+                "content": system_prompt
+            },
+            {
+                "role": "user",
+                "content": query_prompt
+            }
+        ]
+        response = get_llm_response(prompt)
+        try:
+            # Extract the required parts from the response
+            pattern = r"<pii>(yes|no)</pii>.*?<query_anonymized>(.*?)</query_anonymized>.*?<response_anonymized>(.*?)</response_anonymized>"
+            match = re.search(pattern, response, re.DOTALL | re.IGNORECASE)
+            
+            if match:
+                has_pii = match.group(1).lower() == "yes"
+                anonymized_query = match.group(2).strip()
+                anonymized_response = match.group(3).strip()
+                
+                # If PII was detected, use the anonymized versions
+                if has_pii:
+                    return anonymized_query, anonymized_response
+                
+            # If no PII or parsing failed, return the originals
+            return question, answer
+        except Exception as e:
+            print(f"Error parsing anonymization response: {e}")
+            return question, answer
     
     def filter_questions(self, query, results):
         filtered_results = []
@@ -192,6 +238,14 @@ class KnowledgeBaseClient:
                                    credential=DefaultAzureCredential())
         self.openai_embedding_client = OpenAIEmbeddingClient()
         
+    def get_document(self, id):
+        try:
+            result = self.client.get_document(id)
+            return result
+        except Exception as e:
+            print(f"Error retrieving document with id {id}: {e}")
+            return None
+
     def add_new_data_chunk(self,
         id: str,
         kb_data: dict,
@@ -245,29 +299,38 @@ class KnowledgeBaseClient:
 
 if __name__ == "__main__":
     
-    # preverified_client = PreverifiedClient(
-    #     os.environ["AZURE_SEARCH_ENDPOINT"],
-    #     os.environ["PREVERIFIED_SEARCH_INDEX_NAME"]
-    # )
-
-    # question = "How long does it take to recover from cataract surgery?"
-    # answer = "It usually takes about 2 weeks to fully recover from cataract surgery."
-    # org_id = "TEST"
-
-    # test_query = "What should I eat before my surgery?"
-
-    # print(preverified_client.find_closest_preverified_pair(test_query, org_id)['question_answer'])
-
+    preverified_client = PreverifiedClient(
+        os.environ["AZURE_SEARCH_ENDPOINT"],
+        os.environ["PREVERIFIED_SEARCH_INDEX_NAME"]
+    )
+    
     kb_client = KnowledgeBaseClient(
         os.environ["AZURE_SEARCH_ENDPOINT"],
         os.environ["KB_SEARCH_INDEX_NAME"]
     )
 
-    query = "How safe is cataract surgery?"
+    question = "When is Aman's surgery?"
+    answer = "Aman's surgery is on 15th March 2024."
     org_id = "TEST"
-    result = kb_client.hybrid_search(query, org_id)
-    for doc in result:
-        print(doc['data_chunk'])
-        print(doc['metadata']['source'])
-        print(doc['org_id'])
-        print()
+
+    test_query = "What should I eat before my surgery?"
+
+    document_key = "97844aa4bf1e71cbcca594965b543007"
+    print(kb_client.get_document(document_key))
+
+    # print(preverified_client.find_closest_preverified_pair(test_query, org_id)['question_answer'])
+
+    # anonymized_query, anonymized_answer = preverified_client.anonymyze_qa_pair(question, answer)
+    # print(f"Anonymized Query: {anonymized_query}")
+    # print(f"Anonymized Answer: {anonymized_answer}")
+
+    
+
+    # query = "How safe is cataract surgery?"
+    # org_id = "TEST"
+    # result = kb_client.hybrid_search(query, org_id)
+    # for doc in result:
+    #     print(doc['data_chunk'])
+    #     print(doc['metadata']['source'])
+    #     print(doc['org_id'])
+    #     print()

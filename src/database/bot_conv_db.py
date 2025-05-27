@@ -22,6 +22,7 @@ class BotConvDB(BaseDB):
         citations,
         message_timestamp,
         transaction_message_id,
+        metadata=None,
         message_category=None):
 
         bot_conv = {
@@ -36,6 +37,7 @@ class BotConvDB(BaseDB):
             'reply_id': reply_id,
             'citations': citations,
             'message_timestamp': message_timestamp,
+            'metadata': metadata,
             'transaction_message_id': transaction_message_id
         }
 
