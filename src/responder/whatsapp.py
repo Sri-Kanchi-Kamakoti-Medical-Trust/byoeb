@@ -22,6 +22,7 @@ from responder.base import BaseResponder
 from azure.identity import DefaultAzureCredential
 from azure_search import PreverifiedClient
 from llm_utils import QueryRewriter
+from hashlib import md5
 
 IDK = "I do not know the answer to your question"
 
@@ -103,7 +104,7 @@ class WhatsappResponder(BaseResponder):
         else:
             return
 
-        print("Entering response function")
+        # print("Entering response function")
         
         msg_object = body["entry"][0]["changes"][0]["value"]["messages"][0]
         from_number = msg_object["from"]
@@ -686,7 +687,7 @@ class WhatsappResponder(BaseResponder):
         return
     
     def generate_and_send_response(self, row_query, row_lt):
-        llm_response, citations = self.knowledge_base.hierarchical_rag_answer_query(
+        llm_response, citations, chunk_ids = self.knowledge_base.hierarchical_rag_answer_query(
             row_query, self.logger, row_lt
         )
         response = llm_response["response_en"]
@@ -755,6 +756,9 @@ class WhatsappResponder(BaseResponder):
             citations=citations_str,
             message_timestamp=datetime.now(),
             transaction_message_id=row_query['message_id'],
+            metadata={
+                "retrieved_chunk_ids": chunk_ids,
+            }
         )
 
         if (
@@ -1226,6 +1230,17 @@ class WhatsappResponder(BaseResponder):
                     row_response["message_id"],
                 )
 
+                generalizable, question, response = self.preverified_client.anonymyze_qa_pair(row_query["message_english"], row_response["message_english"])
+                
+                if generalizable:
+                    self.preverified_client.add_new_qa(
+                        id=md5(question.encode('utf-8')).hexdigest(),
+                        question=question,
+                        answer=response,
+                        related_chunk_ids=row_response.get("metadata", {}).get("retrieved_chunk_ids", []),
+                        org_id=user_row_lt["org_id"],
+                    )
+
             #Send green tick to the responding expert    
             self.messenger.send_reaction(
                 expert_row_lt['whatsapp_id'], poll["message_id"], "\u2705"
@@ -1485,6 +1500,16 @@ class WhatsappResponder(BaseResponder):
             message_timestamp=datetime.now(),
             transaction_message_id=transaction_message_id
         )
+
+        generalizable, question, response = self.preverified_client.anonymyze_qa_pair(row_query["message_english"], gpt_output)
+        if generalizable:
+            self.preverified_client.add_new_qa(
+                id=md5(question.encode('utf-8')).hexdigest(),
+                question=question,
+                answer=response,
+                related_chunk_ids=row_response.get("metadata", {}).get("retrieved_chunk_ids", []),
+                org_id=user_row_lt["org_id"],
+            )
 
         
 

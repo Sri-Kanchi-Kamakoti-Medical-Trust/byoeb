@@ -42,13 +42,13 @@ class KnowledgeBase:
         num_chunks_array = [3, 7]
         for num_chunks in num_chunks_array:
             print("Trying with num_chunks: ", num_chunks)
-            llm_output, citations = self.hierarchical_rag_answer_query_helper(
+            llm_output, citations, chunk_ids = self.hierarchical_rag_answer_query_helper(
                 row_query, logger, num_chunks, row_lt
             )
             if not llm_output["response_en"].startswith(IDK):
                 break
 
-        return (llm_output, citations)
+        return llm_output, citations, chunk_ids
 
     def hierarchical_rag_answer_query_helper(
         self,
@@ -126,6 +126,8 @@ class KnowledgeBase:
             timestamp=datetime.now(),
         )
 
+        chunk_ids = [chunk[3] for chunk in chunks]
+
         # Fetch grounded related questions
 
         llm_output["related_questions_en"] = []
@@ -139,7 +141,7 @@ class KnowledgeBase:
             row_lt["user_language"],
         )
 
-        return llm_output, citations
+        return llm_output, citations, chunk_ids
 
     def get_summarize_long_response_prompt(self, response):
         system_prompt = f"""Please summarise the given answer in 700 characters or less. Only return the summarized answer and nothing else.\n"""

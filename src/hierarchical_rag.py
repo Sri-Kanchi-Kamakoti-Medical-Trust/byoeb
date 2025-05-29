@@ -30,7 +30,7 @@ def hierarchical_rag_retrieve(kb_client, query, org_id, num_chunks=3):
         else:
             relevant_chunks_string += f"Chunk #{chunk1 + 1}\n{chunk['data_chunk']}\n\n"
             chunk1 += 1
-        chunks.append((chunk["data_chunk"], chunk["metadata"]["source"].strip(), chunk["org_id"].strip()))
+        chunks.append((chunk["data_chunk"], chunk["metadata"]["source"].strip(), chunk["org_id"].strip(), chunk["id"]))
         related_questions.extend((chunk["metadata"].get("related_questions", [])))
     
     citations: str = "\n".join(

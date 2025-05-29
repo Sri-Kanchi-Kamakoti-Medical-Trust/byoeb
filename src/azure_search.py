@@ -134,23 +134,27 @@ class PreverifiedClient:
         response = get_llm_response(prompt)
         try:
             # Extract the required parts from the response
-            pattern = r"<pii>(yes|no)</pii>.*?<query_anonymized>(.*?)</query_anonymized>.*?<response_anonymized>(.*?)</response_anonymized>"
+            pattern = r"<generalizable>(yes|no)</generalizable>.*?<pii>(yes|no|)</pii>.*?<query_anonymized>(.*?)</query_anonymized>.*?<response_anonymized>(.*?)</response_anonymized>"
             match = re.search(pattern, response, re.DOTALL | re.IGNORECASE)
             
-            if match:
-                has_pii = match.group(1).lower() == "yes"
-                anonymized_query = match.group(2).strip()
-                anonymized_response = match.group(3).strip()
-                
-                # If PII was detected, use the anonymized versions
-                if has_pii:
-                    return anonymized_query, anonymized_response
-                
-            # If no PII or parsing failed, return the originals
-            return question, answer
+            if not match:
+                return False, question, answer
+
+            generalizable = match.group(1).lower() == "yes"
+            has_pii = match.group(2).lower() == "yes"
+            anonymized_query = match.group(3).strip()
+            anonymized_response = match.group(4).strip()
+
+            if generalizable and has_pii:
+                return generalizable, anonymized_query, anonymized_response
+            elif generalizable and not has_pii:
+                return generalizable, question, answer
+            else:
+                return False, question, answer
+
         except Exception as e:
             print(f"Error parsing anonymization response: {e}")
-            return question, answer
+            return False, question, answer
     
     def filter_questions(self, query, results):
         filtered_results = []
@@ -313,16 +317,19 @@ if __name__ == "__main__":
     answer = "Aman's surgery is on 15th March 2024."
     org_id = "TEST"
 
-    test_query = "What should I eat before my surgery?"
 
-    document_key = "97844aa4bf1e71cbcca594965b543007"
-    print(kb_client.get_document(document_key))
+    generalizable, anonymized_query, anonymized_answer = preverified_client.anonymyze_qa_pair(question, answer)
+    print(f"Generalizable: {generalizable}")
+    print(f"Anonymized Query: {anonymized_query}")
+    print(f"Anonymized Answer: {anonymized_answer}")
 
-    # print(preverified_client.find_closest_preverified_pair(test_query, org_id)['question_answer'])
+    question = "What is the procedure for cataract surgery?"
+    answer = "Cataract surgery involves removing the cloudy lens and replacing it with an artificial lens."
 
-    # anonymized_query, anonymized_answer = preverified_client.anonymyze_qa_pair(question, answer)
-    # print(f"Anonymized Query: {anonymized_query}")
-    # print(f"Anonymized Answer: {anonymized_answer}")
+    generalizable, anonymized_query, anonymized_answer = preverified_client.anonymyze_qa_pair(question, answer)
+    print(f"Generalizable: {generalizable}")
+    print(f"Anonymized Query: {anonymized_query}")
+    print(f"Anonymized Answer: {anonymized_answer}")
 
     
 
