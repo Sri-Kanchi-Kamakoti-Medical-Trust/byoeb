@@ -66,13 +66,10 @@ query_types_to_escalate = ["medical", "logistical"]
 
 df = df[df['query_type'].isin(query_types_to_escalate)]
 df.reset_index(drop=True, inplace=True)
-print(df)
 
 for i, row in tqdm(df.iterrows()):
-    print(row.keys())
-    print(row['message_id'], row['message_english'])
+    # print(row['message_id'], row['message_english'])
     if row.get('escalated', False):
-        print("Already escalated")
         continue
     try:
         user_row_lt = userdb.get_from_user_id(row["user_id"])
@@ -80,7 +77,6 @@ for i, row in tqdm(df.iterrows()):
         #     continue
         query_type = row["query_type"]
         region = user_row_lt["org_id"]
-        print(query_type, region)
         responder.send_correction_poll_expert(user_row_lt, query_type_to_escalation_expert[query_type][region], row, True)
     except Exception as e:
         print(e)

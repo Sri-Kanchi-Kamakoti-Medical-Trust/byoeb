@@ -129,6 +129,22 @@ def add_rows(SCOPES, spreadsheet_id, range_name, df, local_path):
 
     print(f"Added {result.get('updates').get('updatedCells')} cells.")
 
+def get_sheet_id(SCOPES, spreadsheet_id, sheet_name, local_path):
+    creds = gsheet_api_check(SCOPES, local_path)
+    service = build("sheets", "v4", credentials=creds)
+
+    # Get spreadsheet metadata
+    spreadsheet = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+
+    # Iterate over sheets to find the correct sheet by name
+    for sheet in spreadsheet['sheets']:
+        if sheet['properties']['title'] == sheet_name:
+            sheet_id = sheet['properties']['sheetId']
+            print(f"Found Sheet ID: {sheet_id} for Sheet Name: {sheet_name}")
+            return sheet_id
+    
+    print(f"Sheet name '{sheet_name}' not found.")
+    return None
 
 def append_rows(SCOPES, spreadsheet_id, range_name, df, local_path):
     values = df.values.tolist()
@@ -153,6 +169,42 @@ def append_rows(SCOPES, spreadsheet_id, range_name, df, local_path):
 
     print(f"Appended {result.get('updates').get('updatedCells')} cells.")
 
+def add_headers(SCOPES, spreadsheet_id, range_name, headers_list, local_path):
+    # values = df.values.tolist()
+    # column_names = df.columns.tolist()
+
+    creds = gsheet_api_check(SCOPES, local_path)
+    service = build("sheets", "v4", credentials=creds)
+
+    body = {"values": [headers_list]}
+    service.spreadsheets().values().append(
+        spreadsheetId=spreadsheet_id,
+        range=range_name,
+        valueInputOption="RAW",
+        body=body,
+        insertDataOption="INSERT_ROWS",
+    ).execute()
+
+    # Set the header row (first row) to be bold and freeze it
+    sheet_id = get_sheet_id(SCOPES, spreadsheet_id, range_name, local_path)
+    requests = [
+        {
+            "updateSheetProperties": {
+                "properties": {
+                    "sheetId": sheet_id,
+                    "gridProperties": {
+                        "frozenRowCount": 1
+                    }
+                },
+                "fields": "gridProperties.frozenRowCount"
+            }
+        }
+    ]
+
+    # Execute the batch update
+    service.spreadsheets().batchUpdate(
+        spreadsheetId=spreadsheet_id, body={"requests": requests}
+    ).execute()
 
 def pull_sheet_data(SCOPES, SPREADSHEET_ID, DATA_TO_PULL, local_path):
     creds = gsheet_api_check(SCOPES, local_path)

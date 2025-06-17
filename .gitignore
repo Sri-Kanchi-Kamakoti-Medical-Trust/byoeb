@@ -175,3 +175,6 @@ scratch/
 email.html
 kb_data.jsonl
 *.csv
+
+#environment
+.catbot

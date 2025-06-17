@@ -31,7 +31,6 @@ log.setLevel(logging.ERROR)
 
 logger = LoggingDatabase(config)
 medics_onboard = OnboardMedics(config, logger)
-print("Loading Databases done")
 
 if config["CHAT_APPLICATION"] == "whatsapp":
     responder = WhatsappResponder(config)
@@ -87,7 +86,6 @@ def webhook():
             )
             return "OK", 200
     # adding request to queue
-    # print("Adding message to queue, ", body)
     queue_client.send_message(json.dumps(body))
     return "OK", 200
 
@@ -109,7 +107,6 @@ def scheduler():
 
     # Get the current time in IST
     now = datetime.now(pytz.timezone("Asia/Kolkata"))
-    print("Current time: ", now)
     # Round the time to the nearest half hour
     minutes = (now.minute // 5) * 5
     rounded_now = now.replace(minute=minutes, second=0, microsecond=0)
@@ -128,12 +125,9 @@ def scheduler():
         prev_time = iter.get_prev(datetime)
 
         command = command.replace("$LOCAL_PATH", os.environ["APP_PATH"])
-        print("Command: ", command)
-        print("Previous execution time: ", prev_time)
-
+        
         # Check if the job should run at the current time
         if (rounded_now - prev_time).total_seconds() < 60:
-            print("Running command: ", command)
             subprocess.run(command, shell=True)
             if "kb_update" in command:
                 responder.update_kb()
@@ -167,7 +161,7 @@ def long_term():
         except Exception as e:
             print(e)
             traceback.print_exc()
-    print("Medics sankara data received")
+    # print("Medics sankara data received")
     return "OK", 200
 
 @app.route("/cache-clear", methods=["POST"])
@@ -218,15 +212,12 @@ def process_queue():
                         )
                         queue_client.delete_message(message)
                         continue
-                    # print("Message received", message.content)
                     body = json.loads(message.content)
-                    # print("Processing new message")
                     responder.response(body)
                     queue_client.delete_message(message)
                 except Exception as e:
                     print(e)
                     traceback.print_exc()
-                    print("Invalid message received: ", message.content)
                     queue_client.delete_message(message)
         except Exception as e:
             print(e)

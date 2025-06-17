@@ -680,10 +680,7 @@ class WhatsappResponder(BaseResponder):
             )
             self.user_conv_db.mark_resolved(row_query["_id"])
         elif msg_object["interactive"]["button_reply"]["id"] == "PREVERIFIED_NO":
-            if row_query.get("resolved", False):
-                return
             self.generate_and_send_response(row_query, row_lt)
-        
         return
     
     def generate_and_send_response(self, row_query, row_lt):
@@ -1052,6 +1049,9 @@ class WhatsappResponder(BaseResponder):
   
         row_bot_conv = self.bot_conv_db.find_with_transaction_id(row_query["message_id"], "query_response")
 
+        if row_bot_conv is None:
+            return
+        
         user_type = row_lt["user_type"]
         
         poll_string = f"Was the bot's answer correct and complete?"
