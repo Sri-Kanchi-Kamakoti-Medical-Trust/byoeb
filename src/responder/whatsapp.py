@@ -495,20 +495,6 @@ class WhatsappResponder(BaseResponder):
             self.azure_translate.text_to_speech(
                 raise_message, row_lt['user_language']+'-IN', audio_output_file
             )
-
-            # subprocess.run(
-            #     [
-            #         "ffmpeg",
-            #         "-i",
-            #         audio_output_file[:-3] + "wav",
-            #         "-codec:a",
-            #         "aac",
-            #         audio_output_file,
-            #     ],
-            #     stdout=subprocess.DEVNULL,
-            #     stderr=subprocess.DEVNULL,
-            # )
-
             audio_msg_id = self.messenger.send_audio(
                 audio_output_file, row_lt['whatsapp_id'], row_query['message_id']
             )
@@ -707,6 +693,7 @@ class WhatsappResponder(BaseResponder):
                 else:
                     sent_msg_id, audio_msg_id = self.send_idk_raise(row_lt, row_query, row_query['message_type'])
                     raise_message = self.template_messages["idk"][row_lt['user_language']]["text"]
+                    raise_message = raise_message.replace("<expert>", self.template_messages["expert_title"][row_lt['user_language']][self.category_to_expert[query_type]])
                     self.bot_conv_db.insert_row(
                     receiver_id=row_lt['user_id'],
                     message_type="query_response",
@@ -1556,7 +1543,7 @@ class WhatsappResponder(BaseResponder):
 
         self.bot_conv_db.insert_row(
             receiver_id=expert_row_lt["user_id"],
-            message_type="consensus_poll", #ask Mohit
+            message_type="consensus_poll",
             message_id=message_id,
             audio_message_id=audio_msg_id,
             message_source_lang=query,
