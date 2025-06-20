@@ -17,30 +17,12 @@ from email.mime.text import MIMEText
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 import utils
+from send_usage_stats import send_email_with_stats
 
 yes_responses = ["Yes", "हाँ।", "అవును.", "ஆம்.", "ಹೌದು.", "ہاں."]
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 SPREADSHEET_ID = os.environ['SPREADSHEET_ID'].strip()
-
-
-def get_org_wise_stats(df, orgs, timestamp_col, variable=None):
-    stats = []
-    for org in orgs:
-        org_df = df[df['org_id'] == org]
-        if variable is not None:
-            num_true = len(org_df[org_df[variable] == True])
-            num_true_last_day = len(org_df[(org_df[variable] == True) & (org_df[timestamp_col] >= LAST_DAY)])
-            stats.append(f"{num_true} ({num_true_last_day})")
-        else:
-            num = len(org_df)
-            num_last_day = len(org_df[org_df[timestamp_col] >= LAST_DAY])
-            stats.append(f"{num} ({num_last_day})")
-    return stats
-
-NUM_DAYS = 7
-NUM_HOURS = NUM_DAYS*24
-LAST_DAY = pd.to_datetime(datetime.datetime.now().date()) - pd.DateOffset(days=NUM_DAYS)
 
 
 CUT_OFF_START_DATE = pd.to_datetime('2024-12-20')
@@ -55,7 +37,6 @@ users = user_db.collection.find({})
 users_df = pd.DataFrame(users)
 
 orgs = ["BLR", "HYD", "JAI"]
-
 
 users_df = users_df[users_df['org_id'].isin(orgs)]
 
@@ -94,13 +75,6 @@ onboarding_responses_df['is_no'] = onboarding_responses_df['message_source_lang'
 #assert that the sum of is_yes and is_no is equal to the number of rows
 assert onboarding_responses_df['is_yes'].sum() + onboarding_responses_df['is_no'].sum() == len(onboarding_responses_df)
 
-
-# EMAIL STAT
-print(f"Number of people who said yes to onboarding: {onboarding_responses_df['is_yes'].sum()}")
-print(f"Number of people who said no to onboarding: {len(onboarding_responses_df) - onboarding_responses_df['is_yes'].sum()}")
-
-onboarding_yes_stats = ["Number of people who said yes to onboarding"] + get_org_wise_stats(onboarding_responses_df, orgs, 'message_timestamp', 'is_yes')
-onboarding_no_stats = ["Number of people who said no to onboarding"] + get_org_wise_stats(onboarding_responses_df, orgs, 'message_timestamp', 'is_no')
 
 user_conv_df_merged = user_conv_df.merge(users_df, left_on='user_id', right_on='user_id', how='inner')
 users_df['num_messages_sent'] = users_df['user_id'].map(user_conv_df_merged['user_id'].value_counts())
@@ -227,27 +201,27 @@ lang_mapping = {
     "ur": "Urdu",
 }
 
-user_query_df = user_query_df[cols]
+logs_df = user_query_df[cols].copy()
 
-user_query_df['user_language'] = user_query_df['user_language'].map(lang_mapping)
+logs_df['user_language'] = logs_df['user_language'].map(lang_mapping)
 
 #sort from latest to oldest
-user_query_df.sort_values(by='query_timestamp', ascending=False, inplace=True)
-user_query_df.reset_index(drop=True, inplace=True)
+logs_df.sort_values(by='query_timestamp', ascending=False, inplace=True)
+logs_df.reset_index(drop=True, inplace=True)
 
 
-user_query_df['patient_surgery_date'] = pd.to_datetime(user_query_df['patient_surgery_date'], errors='coerce')
-user_query_df['patient_surgery_date'] = user_query_df['patient_surgery_date'].dt.strftime('%d-%m-%Y')
+logs_df['patient_surgery_date'] = pd.to_datetime(logs_df['patient_surgery_date'], errors='coerce')
+logs_df['patient_surgery_date'] = logs_df['patient_surgery_date'].dt.strftime('%d-%m-%Y')
 
 # Convert query_timestamp to datetime and format it
-user_query_df['query_timestamp'] = pd.to_datetime(user_query_df['query_timestamp'], errors='coerce')
-user_query_df['query_timestamp'] = user_query_df['query_timestamp'].dt.strftime('%I:%M %p %d-%m-%Y')
+logs_df['query_timestamp'] = pd.to_datetime(logs_df['query_timestamp'], errors='coerce')
+logs_df['query_timestamp'] = logs_df['query_timestamp'].dt.strftime('%I:%M %p %d-%m-%Y')
 
-user_query_df.fillna('', inplace=True)
-user_query_df = user_query_df.astype(str)
+logs_df.fillna('', inplace=True)
+logs_df = logs_df.astype(str)
 
 #rename all selected columns appropriately
-user_query_df.rename(
+logs_df.rename(
     columns={
         'patient_id': 'Patient ID',
         'patient_surgery_date': 'Patient Surgery Date',
@@ -271,8 +245,8 @@ user_query_df.rename(
 , inplace=True)
 
 # Replace "PREVERIFIED_YES" and "PREVERIFIED_NO" with "Yes" and "No" in the Preverified Poll Response column
-if 'Preverified Poll Response' in user_query_df.columns:
-    user_query_df['Preverified Poll Response'] = user_query_df['Preverified Poll Response'].replace({
+if 'Preverified Poll Response' in logs_df.columns:
+    logs_df['Preverified Poll Response'] = logs_df['Preverified Poll Response'].replace({
         "PREVERIFIED_YES": "Yes",
         "PREVERIFIED_NO": "No"
     })
@@ -283,30 +257,11 @@ unit_info = {
     "JAI": "Jaipur",
 }
 for org in orgs:
-    user_query_df_org = user_query_df[user_query_df['org_id'] == org]
-    user_query_df_org = user_query_df_org.drop(columns=['org_id'])
+    logs_df_org = logs_df[logs_df['org_id'] == org]
+    logs_df_org = logs_df_org.drop(columns=['org_id'])
 
     utils.delete_all_rows(SCOPES, SPREADSHEET_ID, org, local_path)
-    utils.add_headers(SCOPES, SPREADSHEET_ID, org, user_query_df_org.columns.tolist(), local_path)
-    utils.append_rows(SCOPES, SPREADSHEET_ID, org, user_query_df_org, local_path)
+    utils.add_headers(SCOPES, SPREADSHEET_ID, org, logs_df_org.columns.tolist(), local_path)
+    utils.append_rows(SCOPES, SPREADSHEET_ID, org, logs_df_org, local_path)
 
-# stats = [["Description"] + [unit_info[org] for org in orgs]]
-
-# patient_stats = ["Number of patients"] + get_org_wise_stats(users_df, orgs, 'timestamp')
-# stats.append(patient_stats)
-
-# stats.append(onboarding_yes_stats)
-# stats.append(onboarding_no_stats)
-
-# query_df = user_query_df[user_query_df['query_type'] != 'small-talk']
-
-# query_stats = ["Number of queries"] + get_org_wise_stats(query_df, orgs, 'message_timestamp')
-# stats.append(query_stats)
-
-# query_resolved_stats = ["Number of queries resolved"] + get_org_wise_stats(query_df, orgs, 'message_timestamp', 'resolved')
-# stats.append(query_resolved_stats)
-
-# query_df['is_pending'] = query_df['resolved'].apply(lambda x: False if x == True else True)
-
-# query_pending_stats = ["Number of queries pending"] + get_org_wise_stats(query_df, orgs, 'message_timestamp', 'is_pending')
-# stats.append(query_pending_stats)
+send_email_with_stats(users_df, user_query_df, onboarding_responses_df, lang_poll_responses_df)

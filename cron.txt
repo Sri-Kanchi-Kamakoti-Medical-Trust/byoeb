@@ -1,4 +1,4 @@
 30 * * * * python3 $APP_PATH/cron_jobs/escalate.py
 00 11,17 * * * python3 $APP_PATH/cron_jobs/onboard_users.py
-00 17 * * * python3 $APP_PATH/cron_jobs/send_usage_stats.py
+00 17 * * * python3 $APP_PATH/cron_jobs/generate_and_send_logs.py
 00 11 * * * python3 $APP_PATH/cron_jobs/user_reminder.py
