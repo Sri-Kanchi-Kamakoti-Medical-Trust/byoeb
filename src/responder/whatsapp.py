@@ -102,6 +102,14 @@ class WhatsappResponder(BaseResponder):
         ):
             pass
         else:
+            self.logger.add_log(
+                sender_id="whatsapp_api",
+                receiver_id="Bot",
+                message_id=None,
+                action_type="webhook received",
+                details={"body": body},
+                timestamp=datetime.now(),
+            )
             return
 
         # print("Entering response function")
