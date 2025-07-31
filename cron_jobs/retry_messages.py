@@ -12,7 +12,7 @@ sys.path.append(local_path.strip() + "/src")
 
 from database import UserDB, BotConvDB
 import datetime
-
+from time import sleep
 from messenger import WhatsappMessenger
 from app_logging import (
     LoggingDatabase
@@ -116,4 +116,14 @@ class RetryClient:
 
 if __name__ == "__main__":
     retry_client = RetryClient(config)
-    retry_client.retry_message_from_azure_queue()
+    #run this script in exponential backoff mode
+    # to retry messages from the Azure queue
+    print("Starting to retry messages from Azure queue...")
+    num_tries = 3
+    backoff_time = [0, 10, 20] # minutes
+    for i in range(num_tries):
+        sleep_time = backoff_time[i] * 60  # convert minutes to seconds
+        print(f"Attempt {i+1}/{num_tries}: Retrying messages in {sleep_time} seconds...")
+        sleep(sleep_time)
+        retry_client.retry_message_from_azure_queue()
+        
