@@ -6,6 +6,8 @@ from azure_language_tools import translator
 import subprocess
 from datetime import datetime
 from azure.storage.blob import BlobServiceClient
+from azure.storage.queue import QueueClient
+from azure.core.exceptions import ResourceExistsError
 import numpy as np
 import json
 from knowledge_base import KnowledgeBase
@@ -44,6 +46,15 @@ class WhatsappResponder(BaseResponder):
         self.user_conv_db = UserConvDB(config)
         self.bot_conv_db = BotConvDB(config)
         self.expert_conv_db = ExpertConvDB(config)
+
+        self.retry_queue = QueueClient.from_connection_string(
+            os.environ["AZURE_STORAGE_CONNECTION_STRING"].strip(),
+            os.environ["RETRY_QUEUE_NAME"].strip())
+
+        try:
+            self.retry_queue.create_queue()
+        except ResourceExistsError:
+            pass
 
         self.welcome_messages = json.load(
             open(os.path.join(os.environ['DATA_PATH'], "onboarding/welcome_messages.json"), "r")
@@ -91,6 +102,32 @@ class WhatsappResponder(BaseResponder):
     def clear_cache(self):
         self.user_db.clear_cache()
 
+    def process_webhook_error(self, body):
+        retry_error_codes = [131049]
+        if (
+            body.get("object")
+            and body.get("entry")
+            and body["entry"][0].get("changes")
+            and body["entry"][0]["changes"][0].get("value")
+            and body["entry"][0]["changes"][0]["value"].get("statuses")
+            and body["entry"][0]["changes"][0]["value"]["statuses"][0].get("errors")
+        ):
+            error = body["entry"][0]["changes"][0]["value"]["statuses"][0]["errors"][0]
+            if error.get("code") in retry_error_codes:
+                message_id = body["entry"][0]["changes"][0]["value"]["statuses"][0]["id"]
+                user_whatsapp_id = body["entry"][0]["changes"][0]["value"]["statuses"][0]["recipient_id"]
+                retry_message_content = {
+                    "message_id": message_id,
+                    "user_whatsapp_id": user_whatsapp_id,
+                    "error_code": error["code"],
+                    "timestamp": datetime.now(),
+                }
+                print(f"Retrying message: {retry_message_content}")
+                self.retry_queue.send_message(retry_message_content)
+                return
+        else:
+            return
+
     def response(self, body):
         if (
             body.get("object")
@@ -102,14 +139,25 @@ class WhatsappResponder(BaseResponder):
         ):
             pass
         else:
-            self.logger.add_log(
-                sender_id="whatsapp_api",
-                receiver_id="Bot",
-                message_id=None,
-                action_type="webhook received",
-                details={"body": body},
-                timestamp=datetime.now(),
-            )
+            # self.logger.add_log(
+            #     sender_id="whatsapp_api",
+            #     receiver_id="Bot",
+            #     message_id=None,
+            #     action_type="webhook received",
+            #     details={"body": body},
+            #     timestamp=datetime.now(),
+            # )
+            print("Webhook received", body)
+            if (
+                body.get("object")
+                and body.get("entry")
+                and body["entry"][0].get("changes")
+                and body["entry"][0]["changes"][0].get("value")
+                and body["entry"][0]["changes"][0]["value"].get("statuses")
+                and body["entry"][0]["changes"][0]["value"]["statuses"][0].get("errors")
+            ):
+                print("Processing webhook error")
+                self.process_webhook_error(body)
             return
 
         # print("Entering response function")
