@@ -19,6 +19,8 @@ from app_logging import (
 )
 import traceback
 
+MAX_RETRIES = 3  # Maximum number of retries for each message
+
 class RetryClient:
     def __init__(self, config):
         self.config = config
@@ -69,9 +71,11 @@ class RetryClient:
         while True:
             try:
                 messages = self.queue_client.receive_messages(messages_per_page=1, visibility_timeout=30)
+                messages = list(messages)
                 if not messages:
                     print("No messages to retry")
                     break
+                
                 # print(f"Received {len(messages)} messages to retry")
                 for message in messages:
                     message_content = message.content.replace("'", "\"")  # Ensure JSON format
@@ -82,15 +86,23 @@ class RetryClient:
                         user_row = self.user_db.get_from_whatsapp_id(body["user_whatsapp_id"])
                         prev_msg_obj = self.bot_conv_db.get_from_message_id(body["message_id"])
 
-                        print(user_row, prev_msg_obj)
+                        # print(prev_msg_obj)
 
                         if user_row is None or prev_msg_obj is None:
                             self.queue_client.delete_message(message)
                             continue
 
                         mesg_type = prev_msg_obj["message_type"]
-                        if mesg_type == "onboarding_template":
+                        retry_num = prev_msg_obj.get("metadata", {}).get("retry_num", 0)
+
+                        if retry_num >= MAX_RETRIES:
+                            # print(f"Max retries reached for message ID {body['message_id']}. Deleting message from queue.")
+                            self.queue_client.delete_message(message)
+                            continue
+                        
+                        if mesg_type == "onboarding_template":   
                             onboarding_msg_id = self.messenger.send_template(user_row['whatsapp_id'], 'catbot_consent', user_row['user_language'])
+                            # print(f"Sent onboarding template message with ID: {onboarding_msg_id}")
                             self.bot_conv_db.insert_row(
                                 receiver_id=user_row['user_id'],
                                 message_type='onboarding_template',
@@ -103,6 +115,7 @@ class RetryClient:
                                 citations=None,
                                 message_timestamp=datetime.datetime.now(),
                                 transaction_message_id=None,
+                                metadata={"retry_num": retry_num+1}
                             )
 
                         self.queue_client.delete_message(message)
