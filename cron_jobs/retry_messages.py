@@ -70,9 +70,13 @@ class RetryClient:
     def retry_message_from_azure_queue(self):
         while True:
             try:
+                #get num of msgs in queue
+                message_count = self.queue_client.get_queue_properties().approximate_message_count
+                print(f"Messages in queue: {message_count}")
                 messages = self.queue_client.receive_messages(messages_per_page=1, visibility_timeout=30)
                 messages = list(messages)
-                if not messages:
+                
+                if len(messages) == 0:
                     print("No messages to retry")
                     break
                 
@@ -93,7 +97,10 @@ class RetryClient:
                             continue
 
                         mesg_type = prev_msg_obj["message_type"]
-                        retry_num = prev_msg_obj.get("metadata", {}).get("retry_num", 0)
+                        prev_msg_metadata = prev_msg_obj.get("metadata", {})
+                        retry_num = 0
+                        if prev_msg_metadata is not None:
+                            retry_num = prev_msg_metadata.get("retry_num", 0)
 
                         if retry_num >= MAX_RETRIES:
                             # print(f"Max retries reached for message ID {body['message_id']}. Deleting message from queue.")
