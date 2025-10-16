@@ -38,32 +38,6 @@ for entity in entities:
 
 
 
-# #add to hyd_df if HYD in MRD
-# hyd_df = df[df['MRD'].str.contains('HYD')]
-
-# print(hyd_df['operating_doctor'].value_counts())
-# print(hyd_df['counsellor_name'].value_counts())
-# df = df[df['surgery_name'] == 'CATARACT']
-# df['unit'] = df['MRD'].apply(lambda x: x.split('/')[0])
-# doctor_df = df[['operating_doctor', 'operating_doctor_number', 'unit']]
-
-# doctor_df = doctor_df.drop_duplicates()
-
-# # doctor_df.to_excel('/mnt/c/Users/b-bsachdeva/Documents/doctors.xlsx', index=False)
-
-# print(hyd_df.head())  
-
-# df = df[df['MRD'].str.contains('JAI')]
-# print(len(df))
-
-# print(df['operating_doctor'].value_counts())
-
-#print all doctors and their phone numbers
-# for doc in df['operating_doctor'].unique():
-#     print(doc, df[df['operating_doctor'] == doc]['operating_doctor_number'].iloc[0])
-
-
-
 cutoff_date = pd.to_datetime(datetime.now().date())
 df['surgery_date'] = pd.to_datetime(df['surgery_date'], errors='coerce')
 df['surgery_date'] = df['surgery_date'].apply(lambda x: x.date())
@@ -89,7 +63,7 @@ df['ts'] = df['ts'].dt.tz_convert(None)  # Convert to naive datetime
 df = df[df['ts'] > (pd.to_datetime(datetime.now()) - pd.DateOffset(weeks=2))]
 print(df['ts'].min())
 
-doctors_for_onboarding = ['Umesh', 'Anand Balasubramaniam', 'Sowmya R', 'Vidhya C', 'Venkata Prabhakar Guduru', 'Macwana Palak Niranjan', 'M P Deepika', 'Polkampally Sirisha', 'Balam Pradeep', 'Neeraj Shah', 'Jaswant Singh', 'Amit Mohan', 'Visweswaran S', 'Surabhi Khandelwal']
+doctors_for_onboarding = ['Umesh', 'Anand Balasubramaniam', 'Sowmya R', 'Vidhya C', 'Shalini R', 'Venkata Prabhakar Guduru', 'Macwana Palak Niranjan', 'M P Deepika', 'Polkampally Sirisha', 'Balam Pradeep', 'Neeraj Shah', 'Jaswant Singh', 'Amit Mohan', 'Visweswaran S', 'Surabhi Khandelwal']
 
 # print(blr_df['operating_doctor'].value_counts())
 
