@@ -215,6 +215,11 @@ logs_df['patient_surgery_date'] = logs_df['patient_surgery_date'].dt.strftime('%
 
 # Convert query_timestamp to datetime and format it
 logs_df['query_timestamp'] = pd.to_datetime(logs_df['query_timestamp'], errors='coerce')
+
+# Retain last 6 months of data
+six_months_ago = pd.to_datetime('now') - pd.DateOffset(months=6)
+logs_df = logs_df[logs_df['query_timestamp'] >= six_months_ago]
+
 logs_df['query_timestamp'] = logs_df['query_timestamp'].dt.strftime('%I:%M %p %d-%m-%Y')
 
 logs_df.fillna('', inplace=True)
@@ -259,6 +264,9 @@ unit_info = {
 for org in orgs:
     logs_df_org = logs_df[logs_df['org_id'] == org]
     logs_df_org = logs_df_org.drop(columns=['org_id'])
+
+    # retain only last 10K rows
+    logs_df_org = logs_df_org.head(10000)
 
     utils.delete_all_rows(SCOPES, SPREADSHEET_ID, org, local_path)
     utils.add_headers(SCOPES, SPREADSHEET_ID, org, logs_df_org.columns.tolist(), local_path)
