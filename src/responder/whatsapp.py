@@ -284,7 +284,7 @@ class WhatsappResponder(BaseResponder):
 
         self.user_db.update_user_language(row_lt['user_id'], detected_lang)
         self.user_db.clear_cache()
-        onboarding_msg_id = self.messenger.send_template(row_lt['whatsapp_id'], 'catbot_consent', detected_lang)
+        onboarding_msg_id = self.messenger.send_template(row_lt['whatsapp_id'], 'catbot_onboarding_msg_utility', detected_lang)
         
         self.user_conv_db.insert_lang_poll_response(
             user_id=row_lt['user_id'],

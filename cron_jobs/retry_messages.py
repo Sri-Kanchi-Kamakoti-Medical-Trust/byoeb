@@ -108,7 +108,7 @@ class RetryClient:
                             continue
                         
                         if mesg_type == "onboarding_template":   
-                            onboarding_msg_id = self.messenger.send_template(user_row['whatsapp_id'], 'catbot_consent', user_row['user_language'])
+                            onboarding_msg_id = self.messenger.send_template(user_row['whatsapp_id'], 'catbot_onboarding_msg_utility', user_row['user_language'])
                             # print(f"Sent onboarding template message with ID: {onboarding_msg_id}")
                             self.bot_conv_db.insert_row(
                                 receiver_id=user_row['user_id'],
