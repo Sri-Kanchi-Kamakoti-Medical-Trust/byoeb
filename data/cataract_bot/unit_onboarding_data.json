@@ -7,19 +7,19 @@
     "SEHBLR": {
         "org_id": "BLR",
         "language": "en",
-        "lang_template_name": "lang_selection_blr",
+        "lang_template_name": "lang_selection_blr_utility",
         "default_counsellor": "Ms Nimi"
     },
     "SEHJAI": {
         "org_id": "JAI",
         "language": "hi",
-        "lang_template_name": "lang_selection_jai",
+        "lang_template_name": "lang_selection_jai_utility",
         "default_counsellor": "Princi K Yadav"
     },
     "SEHHYD": {
         "org_id": "HYD",
         "language": "en",
-        "lang_template_name": "lang_selection_hyd",
+        "lang_template_name": "lang_selection_hyd_utility",
         "default_counsellor": "Somappa Anush Kumar"
     }
 }
