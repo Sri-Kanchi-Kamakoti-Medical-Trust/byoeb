@@ -81,3 +81,11 @@ class BotConvDB(BaseDB):
     def find(self, query):
         bot_conv = self.collection.find(query)
         return bot_conv
+    
+    def update_message_status(self, message_id, status):
+        self.collection.update_one(
+            {'message_id': message_id},
+            {'$set': {
+                'message_status': status
+            }}
+        )

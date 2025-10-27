@@ -102,6 +102,9 @@ class WhatsappResponder(BaseResponder):
     def clear_cache(self):
         self.user_db.clear_cache()
 
+    def update_message_status(self, message_id, status):
+        self.bot_conv_db.update_message_status(message_id, status)
+
     def process_webhook_error(self, body):
         retry_error_codes = [131049]
         if (
@@ -147,17 +150,18 @@ class WhatsappResponder(BaseResponder):
                 details={"body": body},
                 timestamp=datetime.now(),
             )
-            print("Webhook received", body)
+            # print("Webhook received", body)
             if (
                 body.get("object")
                 and body.get("entry")
                 and body["entry"][0].get("changes")
                 and body["entry"][0]["changes"][0].get("value")
                 and body["entry"][0]["changes"][0]["value"].get("statuses")
-                and body["entry"][0]["changes"][0]["value"]["statuses"][0].get("errors")
+                and body["entry"][0]["changes"][0]["value"]["statuses"][0].get("status")
             ):
-                print("Processing webhook error")
-                self.process_webhook_error(body)
+                # print("Updating message status")
+                self.update_message_status(
+                    body["entry"][0]["changes"][0]["value"]["statuses"][0]["id"], body["entry"][0]["changes"][0]["value"]["statuses"][0]["status"])
             return
 
         # print("Entering response function")
