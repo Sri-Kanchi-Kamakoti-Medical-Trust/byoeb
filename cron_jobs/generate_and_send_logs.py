@@ -49,10 +49,26 @@ experts_df = pd.concat([counsellors_df, doctors_df], ignore_index=True)
 user_conv_cursor = user_conv_db.collection.find({})
 user_conv_df = pd.DataFrame(list(user_conv_cursor))
 
+cursor = bot_conv_db.collection.find({})
+bot_conv_df = pd.DataFrame(list(cursor))
+
 user_conv_df['message_timestamp'] = pd.to_datetime(user_conv_df['message_timestamp'])
 user_conv_df = user_conv_df[user_conv_df['message_timestamp'] >= CUT_OFF_START_DATE]
 
+bot_conv_df['message_timestamp'] = pd.to_datetime(bot_conv_df['message_timestamp'])
+bot_conv_df = bot_conv_df[bot_conv_df['message_timestamp'] >= CUT_OFF_START_DATE]
+
 user_conv_df = user_conv_df[user_conv_df['user_id'].isin(users_df['user_id'])]
+
+onboarding_messages_df = bot_conv_df[bot_conv_df['message_type'] == 'onboarding_template']
+
+#drop duplicate receiver_id, keep last
+onboarding_messages_df = onboarding_messages_df.sort_values(by='message_timestamp', ascending=False)
+onboarding_messages_df = onboarding_messages_df.drop_duplicates(subset=['receiver_id'], keep='first')
+
+onboarding_messages_df = onboarding_messages_df.merge(users_df, left_on='receiver_id', right_on='user_id', how='inner')
+
+users_df = users_df.merge(onboarding_messages_df[['receiver_id', 'message_status']], left_on='user_id', right_on='receiver_id', how='left')
 
 onboarding_responses_df = user_conv_df[user_conv_df['message_type'] == 'onboarding_response']
 lang_poll_responses_df = user_conv_df[user_conv_df['message_type'] == 'lang_poll_response']
@@ -75,6 +91,11 @@ onboarding_responses_df['is_no'] = onboarding_responses_df['message_source_lang'
 #assert that the sum of is_yes and is_no is equal to the number of rows
 assert onboarding_responses_df['is_yes'].sum() + onboarding_responses_df['is_no'].sum() == len(onboarding_responses_df)
 
+users_df = users_df.merge(onboarding_responses_df[['user_id', 'is_yes', 'is_no']], left_on='user_id', right_on='user_id', how='left')
+
+
+users_df['onboarding_message_status'] = users_df['message_status']
+users_df['onboarding_response'] = users_df.apply(lambda row: 'Yes' if row['is_yes'] == True else ('No' if row['is_no'] == True else ''), axis=1)
 
 user_conv_df_merged = user_conv_df.merge(users_df, left_on='user_id', right_on='user_id', how='inner')
 users_df['num_messages_sent'] = users_df['user_id'].map(user_conv_df_merged['user_id'].value_counts())
@@ -89,9 +110,6 @@ user_conv_df_merged.rename(
 
 user_query_df = user_conv_df_merged[user_conv_df_merged['query_modality'].isin(['interactive', 'text', 'audio'])]
 
-
-cursor = bot_conv_db.collection.find({})
-bot_conv_df = pd.DataFrame(list(cursor))
 
 query_responses_df = bot_conv_df[bot_conv_df['message_type'] == 'query_response']
 preverified_responses_df = bot_conv_df[bot_conv_df['message_type'] == 'preverified_response']
@@ -126,13 +144,8 @@ user_query_df = user_query_df.merge(query_responses_df, left_on='transaction_mes
 
 # Check how many queries have a non-null preverified response
 queries_with_preverified = user_query_df[user_query_df['preverified_response_source_lang'].notna()]
-print(f"Number of queries with preverified response: {len(queries_with_preverified)}")
+# print(f"Number of queries with preverified response: {len(queries_with_preverified)}")
 
-# Display the value counts of poll_response in preverified responses
-if 'preverified_poll_response' in user_query_df.columns:
-    poll_response_counts = user_query_df['preverified_poll_response'].value_counts()
-    print("\nPoll Response Value Counts:")
-    print(poll_response_counts)
 
 cursor = expert_conv_db.collection.find({})
 expert_conv_df = pd.DataFrame(list(cursor))
@@ -261,6 +274,44 @@ unit_info = {
     "HYD": "Hyderabad",
     "JAI": "Jaipur",
 }
+
+users_df.sort_values(by='timestamp', ascending=False, inplace=True)
+users_df.reset_index(drop=True, inplace=True)
+users_df_to_log = users_df.copy()
+users_df_to_log.rename(
+    columns={
+        # 'user_id': 'User ID',
+        'patient_id': 'Patient ID',
+        'timestamp': 'Patient Onboarding Date',
+        'patient_name': 'Patient Name',
+        'patient_age': 'Patient Age',
+        'patient_gender': 'Patient Gender',
+        'patient_surgery_date': 'Patient Surgery Date',
+        'onboarding_message_status': 'Onboarding Message Status',
+        'onboarding_response': 'Onboarding Response',
+        'org_id': 'Unit',
+        'onboarding_message_status': 'Onboarding Message Status',
+        'onboarding_response': 'Onboarding Response',
+        'num_messages_sent': 'Number of Messages Sent',
+    }, inplace=True
+)
+
+users_df_to_log = users_df_to_log[['Patient ID', 'Patient Onboarding Date', 'Patient Name', 'Patient Age', 'Patient Gender', 'Patient Surgery Date', 'Onboarding Message Status', 'Onboarding Response', 'Unit', 'Number of Messages Sent']].copy()
+users_df_to_log['Unit'] = users_df_to_log['Unit'].map(unit_info)
+users_df_to_log['Patient Surgery Date'] = pd.to_datetime(users_df_to_log['Patient Surgery Date'], errors='coerce').dt.strftime('%d-%m-%Y')
+
+#only retain last 6 months of data
+users_df_to_log = users_df_to_log[users_df_to_log['Patient Onboarding Date'] >= six_months_ago]
+users_df_to_log['Patient Onboarding Date'] = pd.to_datetime(users_df_to_log['Patient Onboarding Date'], errors='coerce').dt.strftime('%d-%m-%Y')
+
+
+users_df_to_log.fillna('', inplace=True)
+
+utils.delete_all_rows(SCOPES, SPREADSHEET_ID, 'Patients', local_path)
+utils.add_headers(SCOPES, SPREADSHEET_ID, 'Patients', users_df_to_log.columns.tolist(), local_path)
+utils.append_rows(SCOPES, SPREADSHEET_ID, 'Patients', users_df_to_log, local_path)
+
+
 for org in orgs:
     logs_df_org = logs_df[logs_df['org_id'] == org]
     logs_df_org = logs_df_org.drop(columns=['org_id'])
@@ -272,4 +323,6 @@ for org in orgs:
     utils.add_headers(SCOPES, SPREADSHEET_ID, org, logs_df_org.columns.tolist(), local_path)
     utils.append_rows(SCOPES, SPREADSHEET_ID, org, logs_df_org, local_path)
 
-send_email_with_stats(users_df, user_query_df, onboarding_responses_df, lang_poll_responses_df)
+
+
+send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboarding_responses_df, lang_poll_responses_df)

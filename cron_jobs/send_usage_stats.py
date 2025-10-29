@@ -17,23 +17,28 @@ from email.mime.text import MIMEText
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
+NUM_DAYS = 7
+NUM_HOURS = NUM_DAYS*24
+LAST_DAY = pd.to_datetime(datetime.datetime.now().date()) - pd.DateOffset(days=1)
+LAST_DELTA_DAYS = pd.to_datetime(datetime.datetime.now().date()) - pd.DateOffset(days=NUM_DAYS)
+
 def get_org_wise_stats(df, orgs, timestamp_col, variable=None):
     stats = []
     for org in orgs:
         org_df = df[df['org_id'] == org]
         if variable is not None:
             num_true = len(org_df[org_df[variable] == True])
+            num_true_last_delta_day = len(org_df[(org_df[variable] == True) & (org_df[timestamp_col] >= LAST_DELTA_DAYS)])
             num_true_last_day = len(org_df[(org_df[variable] == True) & (org_df[timestamp_col] >= LAST_DAY)])
-            stats.append(f"{num_true} ({num_true_last_day})")
+            stats.append(f"{num_true} ({num_true_last_delta_day}) [{num_true_last_day}]")
         else:
             num = len(org_df)
+            num_last_delta_day = len(org_df[org_df[timestamp_col] >= LAST_DELTA_DAYS])
             num_last_day = len(org_df[org_df[timestamp_col] >= LAST_DAY])
-            stats.append(f"{num} ({num_last_day})")
+            stats.append(f"{num} ({num_last_delta_day}) [{num_last_day}]")
     return stats
 
-NUM_DAYS = 7
-NUM_HOURS = NUM_DAYS*24
-LAST_DAY = pd.to_datetime(datetime.datetime.now().date()) - pd.DateOffset(days=NUM_DAYS)
+
 SPREADSHEET_ID = os.environ['SPREADSHEET_ID'].strip()
 
 orgs = ["BLR", "HYD", "JAI"]
@@ -44,11 +49,18 @@ unit_info = {
     "JAI": "Jaipur",
 }
 
-def send_email_with_stats(users_df, user_query_df, onboarding_responses_df, lang_poll_responses_df):
+def send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboarding_responses_df, lang_poll_responses_df):
 
     onboarding_responses_df = onboarding_responses_df.dropna(subset=['user_id'])
     lang_poll_responses_df = lang_poll_responses_df.dropna(subset=['user_id'])
 
+    onboarding_messages_df['is_sent'] = onboarding_messages_df['message_status'].apply(lambda x: True if x in ['sent', 'delivered', 'read'] else False)
+    onboarding_messages_df['is_delivered'] = onboarding_messages_df['message_status'].apply(lambda x: True if x in ['delivered', 'read'] else False)
+    onboarding_messages_df['is_read'] = onboarding_messages_df['message_status'].apply(lambda x: True if x == 'read' else False)
+
+    onboarding_sent_stats = ["Number of onboarding messages sent"] + get_org_wise_stats(onboarding_messages_df, orgs, 'message_timestamp', 'is_sent')
+    onboarding_delivered_stats = ["Number of onboarding messages delivered"] + get_org_wise_stats(onboarding_messages_df, orgs, 'message_timestamp', 'is_delivered')
+    onboarding_read_stats = ["Number of onboarding messages read"] + get_org_wise_stats(onboarding_messages_df, orgs, 'message_timestamp', 'is_read')
     onboarding_yes_stats = ["Number of people who said yes to onboarding"] + get_org_wise_stats(onboarding_responses_df, orgs, 'message_timestamp', 'is_yes')
     onboarding_no_stats = ["Number of people who said no to onboarding"] + get_org_wise_stats(onboarding_responses_df, orgs, 'message_timestamp', 'is_no')
 
@@ -56,7 +68,9 @@ def send_email_with_stats(users_df, user_query_df, onboarding_responses_df, lang
 
     patient_stats = ["Number of patients"] + get_org_wise_stats(users_df, orgs, 'timestamp')
     stats.append(patient_stats)
-
+    stats.append(onboarding_sent_stats)
+    stats.append(onboarding_delivered_stats)
+    stats.append(onboarding_read_stats)
     stats.append(onboarding_yes_stats)
     stats.append(onboarding_no_stats)
 
@@ -91,18 +105,22 @@ def send_email_with_stats(users_df, user_query_df, onboarding_responses_df, lang
         }}
         th, td {{
             border: 1px solid black;
-            padding: 10px;  /* Increase padding to increase space between columns */
+            padding: 10px;
             text-align: left;
         }}
-    </style>
+        </style>
     </head>
-        <body style="font-family: 'Courier New', Courier, monospace;">
+    <body style="font-family: 'Courier New', Courier, monospace;">
         Hello team,<br>
-        Here is the link to the usage logs: <a href="https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/view?gid=1306836655#gid=1306836655">Usage Logs</a><br>
-        Please find the usage stats for CataractBot below:<br>
-        The values in the bracket indicate the change in the last {NUM_DAYS} day(s).<br>
+        Here is the link to the usage logs:
+        <a href="https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/view?gid=1306836655#gid=1306836655">Usage Logs</a>
+        <br><br>
+        Please find the usage stats for CataractBot below.<br>
+        <small>
+            Values in parentheses show the change over the last {NUM_DAYS} day(s), and values in square brackets show the change in the last 24 hours.
+        </small>
         <h4>Overall Stats:</h4>
-        {tabulate(stats, tablefmt="html", colalign=("left", "left"))}
+        {tabulate(stats, tablefmt="html", colalign=('left', 'left'))}
         <br>
         Regards,<br>
         CataractBot Team
@@ -133,7 +151,6 @@ def send_email_with_stats(users_df, user_query_df, onboarding_responses_df, lang
     with open('email.html', 'w') as file:
         file.write(msg.as_string())
 
-    print("Sending email to: ", email_list)
     for receiver in email_list:
         s.sendmail(os.environ['LOGGING_EMAIL_ID'].strip(), receiver, msg.as_string())
     s.quit()
