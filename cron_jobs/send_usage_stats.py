@@ -17,10 +17,11 @@ from email.mime.text import MIMEText
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
+DT_NOW = datetime.datetime.now()
 NUM_DAYS = 7
 NUM_HOURS = NUM_DAYS*24
-LAST_DAY = pd.to_datetime(datetime.datetime.now().date()) - pd.DateOffset(days=1)
-LAST_DELTA_DAYS = pd.to_datetime(datetime.datetime.now().date()) - pd.DateOffset(days=NUM_DAYS)
+LAST_DAY = pd.to_datetime(DT_NOW) - pd.DateOffset(days=1)
+LAST_DELTA_DAYS = pd.to_datetime(DT_NOW) - pd.DateOffset(days=NUM_DAYS)
 
 def get_org_wise_stats(df, orgs, timestamp_col, variable=None):
     stats = []
