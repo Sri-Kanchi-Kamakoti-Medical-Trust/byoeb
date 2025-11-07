@@ -307,6 +307,8 @@ users_df_to_log['Patient Onboarding Date'] = pd.to_datetime(users_df_to_log['Pat
 
 users_df_to_log.fillna('', inplace=True)
 
+users_df_to_log = users_df_to_log.head(2000)
+
 utils.delete_all_rows(SCOPES, SPREADSHEET_ID, 'Patients', local_path)
 utils.add_headers(SCOPES, SPREADSHEET_ID, 'Patients', users_df_to_log.columns.tolist(), local_path)
 utils.append_rows(SCOPES, SPREADSHEET_ID, 'Patients', users_df_to_log, local_path)
@@ -316,8 +318,7 @@ for org in orgs:
     logs_df_org = logs_df[logs_df['org_id'] == org]
     logs_df_org = logs_df_org.drop(columns=['org_id'])
 
-    # retain only last 10K rows
-    logs_df_org = logs_df_org.head(10000)
+    logs_df_org = logs_df_org.head(5000)
 
     utils.delete_all_rows(SCOPES, SPREADSHEET_ID, org, local_path)
     utils.add_headers(SCOPES, SPREADSHEET_ID, org, logs_df_org.columns.tolist(), local_path)
