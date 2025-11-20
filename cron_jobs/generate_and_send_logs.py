@@ -1,3 +1,4 @@
+import pytz
 import yaml
 import os
 import smtplib
@@ -24,7 +25,8 @@ yes_responses = ["Yes", "हाँ।", "అవును.", "ஆம்.", "ಹ�
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 SPREADSHEET_ID = os.environ['SPREADSHEET_ID'].strip()
 
-
+IST = pytz.timezone('Asia/Kolkata')
+DT_NOW = pd.to_datetime(datetime.datetime.now(IST).date())
 CUT_OFF_START_DATE = pd.to_datetime('2024-12-20')
 
 
@@ -40,9 +42,11 @@ orgs = ["BLR", "HYD", "JAI"]
 
 users_df = users_df[users_df['org_id'].isin(orgs)]
 
+
 counsellors_df = users_df[users_df['user_type'] == 'Counsellor']
 doctors_df = users_df[users_df['user_type'] == 'Doctor']
 users_df = users_df[users_df['user_type'] == 'Patient']
+users_df = users_df[(users_df['timestamp'] >= CUT_OFF_START_DATE) & (users_df['timestamp'] <= DT_NOW)]
 
 experts_df = pd.concat([counsellors_df, doctors_df], ignore_index=True)
 
@@ -53,10 +57,10 @@ cursor = bot_conv_db.collection.find({})
 bot_conv_df = pd.DataFrame(list(cursor))
 
 user_conv_df['message_timestamp'] = pd.to_datetime(user_conv_df['message_timestamp'])
-user_conv_df = user_conv_df[user_conv_df['message_timestamp'] >= CUT_OFF_START_DATE]
+user_conv_df = user_conv_df[(user_conv_df['message_timestamp'] >= CUT_OFF_START_DATE) & (user_conv_df['message_timestamp'] <= DT_NOW)]
 
 bot_conv_df['message_timestamp'] = pd.to_datetime(bot_conv_df['message_timestamp'])
-bot_conv_df = bot_conv_df[bot_conv_df['message_timestamp'] >= CUT_OFF_START_DATE]
+bot_conv_df = bot_conv_df[(bot_conv_df['message_timestamp'] >= CUT_OFF_START_DATE) & (bot_conv_df['message_timestamp'] <= DT_NOW)]
 
 user_conv_df = user_conv_df[user_conv_df['user_id'].isin(users_df['user_id'])]
 
@@ -144,7 +148,6 @@ user_query_df = user_query_df.merge(query_responses_df, left_on='transaction_mes
 
 # Check how many queries have a non-null preverified response
 queries_with_preverified = user_query_df[user_query_df['preverified_response_source_lang'].notna()]
-# print(f"Number of queries with preverified response: {len(queries_with_preverified)}")
 
 
 cursor = expert_conv_db.collection.find({})
@@ -197,6 +200,7 @@ if len(query_correction_df) > 0:
 user_query_df['resolved'].fillna(False, inplace=True)
 user_query_df['resolved'] = user_query_df['resolved'].astype(bool)
 
+user_query_df.loc[user_query_df['query_type'].isin(['small-talk', 'expired_access']), 'resolved'] = True
 
 
 user_query_df['pending'] = user_query_df['resolved'].apply(lambda x: "" if x == True else "Yes")
@@ -309,21 +313,15 @@ users_df_to_log.fillna('', inplace=True)
 
 users_df_to_log = users_df_to_log.head(2000)
 
-utils.delete_all_rows(SCOPES, SPREADSHEET_ID, 'Patients', local_path)
-utils.add_headers(SCOPES, SPREADSHEET_ID, 'Patients', users_df_to_log.columns.tolist(), local_path)
-utils.append_rows(SCOPES, SPREADSHEET_ID, 'Patients', users_df_to_log, local_path)
-
+utils.overwrite_sheet_data(SCOPES, SPREADSHEET_ID, 'Patients', users_df_to_log, local_path)
 
 for org in orgs:
     logs_df_org = logs_df[logs_df['org_id'] == org]
     logs_df_org = logs_df_org.drop(columns=['org_id'])
 
     logs_df_org = logs_df_org.head(5000)
-
-    utils.delete_all_rows(SCOPES, SPREADSHEET_ID, org, local_path)
-    utils.add_headers(SCOPES, SPREADSHEET_ID, org, logs_df_org.columns.tolist(), local_path)
-    utils.append_rows(SCOPES, SPREADSHEET_ID, org, logs_df_org, local_path)
-
+    
+    utils.overwrite_sheet_data(SCOPES, SPREADSHEET_ID, org, logs_df_org, local_path)
 
 
 send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboarding_responses_df, lang_poll_responses_df)

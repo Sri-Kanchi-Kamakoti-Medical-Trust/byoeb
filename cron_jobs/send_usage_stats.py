@@ -16,17 +16,19 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
+import pytz
 
-DT_NOW = datetime.datetime.now()
+IST = pytz.timezone('Asia/Kolkata')
+DT_NOW = pd.to_datetime(datetime.datetime.now(IST).date())
 NUM_DAYS = 7
 NUM_HOURS = NUM_DAYS*24
-LAST_DAY = pd.to_datetime(DT_NOW) - pd.DateOffset(days=1)
-LAST_DELTA_DAYS = pd.to_datetime(DT_NOW) - pd.DateOffset(days=NUM_DAYS)
+LAST_DAY = DT_NOW - pd.DateOffset(days=1)
+LAST_DELTA_DAYS = DT_NOW - pd.DateOffset(days=NUM_DAYS)
 
 def get_org_wise_stats(df, orgs, timestamp_col, variable=None):
     stats = []
     for org in orgs:
-        org_df = df[df['org_id'] == org]
+        org_df = df[(df['org_id'] == org) & (df[timestamp_col] <= DT_NOW)]
         if variable is not None:
             num_true = len(org_df[org_df[variable] == True])
             num_true_last_delta_day = len(org_df[(org_df[variable] == True) & (org_df[timestamp_col] >= LAST_DELTA_DAYS)])
