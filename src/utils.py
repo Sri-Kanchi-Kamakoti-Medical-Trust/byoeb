@@ -10,6 +10,7 @@ from googleapiclient.discovery import build
 import time
 from openai import OpenAI, AzureOpenAI
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from googleapiclient.errors import HttpError
 
 def get_client_with_token_provider():
     token_provider = get_bearer_token_provider(
@@ -301,3 +302,105 @@ def is_activity_older_than_24_hours(activity_time):
     
     # Check if the difference is greater than 24 hours
     return time_difference > 86400
+
+def overwrite_sheet_data(SCOPES, spreadsheet_id, sheet_name, df, local_path, has_header=False):
+    """
+    The robust solution to clear existing data and write new DataFrame content 
+    without leaving empty rows.
+    
+    FIX: This function now includes the logic to freeze Row 1 and explicitly 
+    unfreeze all columns when a new header is uploaded (has_header=False).
+
+    :param SCOPES: List of required scopes.
+    :param spreadsheet_id: The ID of the target Google Sheet.
+    :param sheet_name: The name of the sheet tab (e.g., 'Data Sheet'). This replaces the 'org' variable.
+    :param df: The Pandas DataFrame containing the data to upload.
+    :param local_path: Path to the service account JSON key file.
+    :param has_header: If True, it assumes the sheet already has a header row 
+                       and starts clearing/writing from Row 2. If False, it 
+                       clears the entire sheet and includes DF headers in the upload.
+    :return: The result of the final append operation.
+    """
+    creds = gsheet_api_check(SCOPES, local_path)
+    if not creds:
+        return {"status": "error", "message": "Authentication failed."}
+
+    try:
+        service = build("sheets", "v4", credentials=creds)
+
+        # 1. Prepare data and the range for the CLEAR operation
+        if has_header:
+            # Clears data from Row 2 downwards (keeping existing header in Row 1)
+            clear_range = f"{sheet_name}!A2:Z" 
+            values_to_upload = df.values.tolist()
+        else:
+            # Clears the entire sheet content (A1 downwards)
+            clear_range = f"{sheet_name}!A:Z" # Use A:Z for thorough clearing
+            # Include headers from the DataFrame for upload
+            values_to_upload = [df.columns.tolist()] + df.values.tolist()
+
+
+        print(f"Clearing data from range: {clear_range}")
+        
+        # --- CLEAR OPERATION ---
+        clear_request = service.spreadsheets().values().clear(
+            spreadsheetId=spreadsheet_id, 
+            range=clear_range, 
+            body={}
+        )
+        clear_request.execute()
+
+        # 2. Perform the single, clean APPEND operation
+        # KEY FIX: Use only the sheet_name as the append range. This reliably 
+        # finds the first available row (A1 or A2) after the clear operation.
+        append_range = sheet_name
+        body = {"values": values_to_upload}
+        
+        print(f"Appending new data starting at range: {append_range}")
+
+        # --- APPEND OPERATION ---
+        result = (
+            service.spreadsheets()
+            .values()
+            .append(
+                spreadsheetId=spreadsheet_id,
+                range=append_range, 
+                valueInputOption="RAW",
+                body=body,
+                # insertDataOption="INSERT_ROWS",
+            )
+            .execute()
+        )
+        print("Data append successful.")
+        
+        # --- FREEZE/UNFREEZE FIX APPLIED HERE ---
+        if not has_header:
+            sheet_id = get_sheet_id(SCOPES, spreadsheet_id, sheet_name, local_path)
+            if sheet_id is not None:
+                print(f"Applying freeze settings for sheet ID: {sheet_id}")
+                requests = [
+                    {
+                        "updateSheetProperties": {
+                            "properties": {
+                                "sheetId": sheet_id,
+                                "gridProperties": {
+                                    "frozenRowCount": 1,        # Freeze only the header row
+                                    "frozenColumnCount": 0      # Explicitly unfreeze all columns
+                                }
+                            },
+                            # Update fields to include both row and column freeze properties
+                            "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
+                        }
+                    }
+                ]
+                # Execute the batch update
+                service.spreadsheets().batchUpdate(
+                    spreadsheetId=spreadsheet_id, body={"requests": requests}
+                ).execute()
+        # --- END OF FREEZE FIX ---
+        
+        return result
+
+    except HttpError as err:
+        print(f"An API error occurred: {err}")
+    
