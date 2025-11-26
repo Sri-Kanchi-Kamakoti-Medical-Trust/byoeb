@@ -66,8 +66,8 @@ user_conv_df = user_conv_df[user_conv_df['user_id'].isin(users_df['user_id'])]
 
 onboarding_messages_df = bot_conv_df[bot_conv_df['message_type'] == 'onboarding_template']
 
-#drop duplicate receiver_id, keep last
-onboarding_messages_df = onboarding_messages_df.sort_values(by='message_timestamp', ascending=False)
+#drop duplicate receiver_id, keep first
+onboarding_messages_df = onboarding_messages_df.sort_values(by='message_timestamp', ascending=True)
 onboarding_messages_df = onboarding_messages_df.drop_duplicates(subset=['receiver_id'], keep='first')
 
 onboarding_messages_df = onboarding_messages_df.merge(users_df, left_on='receiver_id', right_on='user_id', how='inner')
@@ -324,4 +324,9 @@ for org in orgs:
     utils.overwrite_sheet_data(SCOPES, SPREADSHEET_ID, org, logs_df_org, local_path)
 
 
-send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboarding_responses_df, lang_poll_responses_df)
+# send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboarding_responses_df, lang_poll_responses_df)
+
+#debug: save them to temp/name.csv
+users_df_to_log.to_csv('tmp/users_df_to_log.csv', index=False)
+logs_df.to_csv('tmp/logs_df.csv', index=False)
+onboarding_messages_df.to_csv('tmp/onboarding_messages_df.csv', index=False)
