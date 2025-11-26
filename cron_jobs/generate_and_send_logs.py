@@ -324,9 +324,4 @@ for org in orgs:
     utils.overwrite_sheet_data(SCOPES, SPREADSHEET_ID, org, logs_df_org, local_path)
 
 
-# send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboarding_responses_df, lang_poll_responses_df)
-
-#debug: save them to temp/name.csv
-users_df_to_log.to_csv('tmp/users_df_to_log.csv', index=False)
-logs_df.to_csv('tmp/logs_df.csv', index=False)
-onboarding_messages_df.to_csv('tmp/onboarding_messages_df.csv', index=False)
+send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboarding_responses_df, lang_poll_responses_df)
