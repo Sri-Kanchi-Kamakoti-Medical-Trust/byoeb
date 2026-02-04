@@ -57,6 +57,7 @@ class OnboardMedics:
             doctor_row = self.user_db.collection.find_one({'user_name': doctor_name, 'user_type': 'Doctor', 'org_id': unit_data['org_id']})
         
         if doctor_row is None:
+            print("Doctor not found")
             return
 
         patient_row = {
@@ -85,7 +86,7 @@ class OnboardMedics:
             meta = patient_meta,
         )
         patient_user_id = patient_row['user_id']
-
+        
         onboarding_msg_id = self.messenger.send_template(patient_row['whatsapp_id'], 'catbot_onboarding_msg_utility', patient_row['user_language'])
         lang_poll_msg_id = self.messenger.send_template(patient_row['whatsapp_id'], unit_lang_template, patient_row['user_language'])
 
