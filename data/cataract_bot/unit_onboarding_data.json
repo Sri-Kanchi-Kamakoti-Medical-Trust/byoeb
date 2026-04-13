@@ -2,7 +2,8 @@
     "UNITS": [
         "SEHBLR",
         "SEHJAI",
-        "SEHHYD"
+        "SEHHYD",
+        "SEHSMG"
     ],
     "SEHBLR": {
         "org_id": "BLR",
@@ -21,5 +22,11 @@
         "language": "en",
         "lang_template_name": "lang_selection_hyd_utility",
         "default_counsellor": "Somappa Anush Kumar"
+    },
+    "SEHSMG": {
+        "org_id": "SMG",
+        "language": "en",
+        "lang_template_name": "lang_selection_smg_utility",
+        "default_counsellor": "Ranjutha"
     }
 }
