@@ -12,7 +12,7 @@ with open(config_path) as file:
 
 
 
-kb_data_path = 'updated_kb_data.jsonl'
+kb_data_path = 'kb_data.jsonl'
 
 def load_kb_data(file_path):
     kb_data = []

@@ -139,6 +139,7 @@ related_qn_generator = RelatedQnGenerator()
 for i, item in tqdm(enumerate(kb_data), total=len(kb_data)):
     chunk_text = item['data_chunk']
     related_qn = related_qn_generator.generate_related_qn(chunk_text)
+    # related_qn = [ qn["question"] for qn in related_qn ]
     # print(f"Original chunk: {chunk_text}")
     # print(f"Generated related questions: {related_qn}")
     
