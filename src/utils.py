@@ -9,12 +9,13 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import time
 from openai import OpenAI, AzureOpenAI
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from azure.identity import ChainedTokenCredential, AzureCliCredential, ManagedIdentityCredential, get_bearer_token_provider
 from googleapiclient.errors import HttpError
 
 def get_client_with_token_provider():
     token_provider = get_bearer_token_provider(
-        DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
+        ChainedTokenCredential(AzureCliCredential(), ManagedIdentityCredential()),
+        "api://trapi/.default"
     )
     
 
@@ -25,8 +26,14 @@ def get_client_with_token_provider():
     )
 
 def get_client_with_key():
+    if os.environ.get('OPENAI_API_ENDPOINT'):
+        return AzureOpenAI(
+            api_key=os.environ['OPENAI_API_KEY'].strip(),
+            api_version=os.environ['OPENAI_API_VERSION'].strip(),
+            azure_endpoint=os.environ['OPENAI_API_ENDPOINT'].strip(),
+        )
     return OpenAI(
-        api_key = os.environ['OPENAI_API_KEY'].strip(),
+        api_key=os.environ['OPENAI_API_KEY'].strip(),
         organization=os.environ['OPENAI_ORG_ID'].strip(),
     )
 

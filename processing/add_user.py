@@ -24,6 +24,7 @@ user_whatsapp_id = '919876543210'
 user_language = 'en'
 user_type = 'Patient'
 
+# old: expert_whatsapp_id = '919876543210'
 expert_whatsapp_id = '919876543210'
 expert_language = 'en'
 expert_type = 'Doctor'
@@ -52,6 +53,7 @@ else:
 
 user_relation_db.insert_row(user_id, expert_id, user_type, expert_type)
 
-hyd_users = user_db.collection.find({'org_id': 'HYD'})
-hyd_users = list(hyd_users)
-print(hyd_users)
+# old: hyd_users = user_db.collection.find({'org_id': 'HYD'})
+cbe_users = user_db.collection.find({'org_id': 'CBE'})
+cbe_users = list(cbe_users)
+print(cbe_users)

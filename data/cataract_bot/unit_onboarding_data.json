@@ -3,7 +3,8 @@
         "SEHBLR",
         "SEHJAI",
         "SEHHYD",
-        "SEHSMG"
+        "SEHSMG",
+        "SEHCBE"
     ],
     "SEHBLR": {
         "org_id": "BLR",
@@ -28,5 +29,11 @@
         "language": "en",
         "lang_template_name": "lang_selection_smg_utility",
         "default_counsellor": "Ranjutha"
+    },
+    "SEHCBE": {
+        "org_id": "CBE",
+        "language": "en",
+        "lang_template_name": "lang_selection_cbe_utility",
+        "default_counsellor": "Ms Shyla"
     }
 }

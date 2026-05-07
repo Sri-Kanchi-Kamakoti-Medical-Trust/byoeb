@@ -9,7 +9,8 @@ with open(os.path.join(local_path,'config.yaml')) as file:
     config = yaml.load(file, Loader=yaml.FullLoader)
 
 data_path = os.path.join(local_path, os.environ['DATA_PATH'], "documents")
-folders_to_process = ['SMG']
+# old: folders_to_process = ['CMB']
+folders_to_process = ['CBE']
 
 kb_data = []
 
