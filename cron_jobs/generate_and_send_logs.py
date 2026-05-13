@@ -38,7 +38,7 @@ expert_conv_db = ExpertConvDB(config)
 users = user_db.collection.find({})
 users_df = pd.DataFrame(users)
 
-orgs = ["BLR", "HYD", "JAI"]
+orgs = ["BLR", "HYD", "JAI", "SMG"]
 
 users_df = users_df[users_df['org_id'].isin(orgs)]
 
@@ -277,6 +277,7 @@ unit_info = {
     "BLR": "Bangalore",
     "HYD": "Hyderabad",
     "JAI": "Jaipur",
+    "SMG": "Shimoga",
 }
 
 users_df.sort_values(by='timestamp', ascending=False, inplace=True)

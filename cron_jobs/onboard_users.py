@@ -53,9 +53,9 @@ df = df.sort_values(by='ts', ascending=False)
 
 print(df.columns)
 
-blr_df = df[df['MRD'].str.contains('BLR')]
-hyd_df = df[df['MRD'].str.contains('HYD')]
-jai_df = df[df['MRD'].str.contains('JAI')]
+# blr_df = df[df['MRD'].str.contains('BLR')]
+# hyd_df = df[df['MRD'].str.contains('HYD')]
+# jai_df = df[df['MRD'].str.contains('JAI')]
 
 #retain last 2 weeks data
 df['ts'] = pd.to_datetime(df['ts'], utc=True)
@@ -63,7 +63,11 @@ df['ts'] = df['ts'].dt.tz_convert(None)  # Convert to naive datetime
 df = df[df['ts'] > (pd.to_datetime(datetime.now()) - pd.DateOffset(weeks=2))]
 print(df['ts'].min())
 
-doctors_for_onboarding = ['Umesh', 'Anand Balasubramaniam', 'Sowmya R', 'Vidhya C', 'Shalini R', 'Venkata Prabhakar Guduru', 'Macwana Palak Niranjan', 'M P Deepika', 'Polkampally Sirisha', 'Balam Pradeep', 'Neeraj Shah', 'Jaswant Singh', 'Amit Mohan', 'Visweswaran S', 'Surabhi Khandelwal']
+doctors_for_onboarding = ['Umesh', 'Anand Balasubramaniam', 'Sowmya R', 'Vidhya C', 'Shalini R', 
+                          'Venkata Prabhakar Guduru', 'Macwana Palak Niranjan', 'M P Deepika', 'Polkampally Sirisha', 'Balam Pradeep', 
+                          'Neeraj Shah', 'Jaswant Singh', 'Amit Mohan', 'Visweswaran S', 'Surabhi Khandelwal',
+                          'Rajashekar J', 'Mahesha S', 'Roopasree B V', 'Kavitha Venkatachalam', 'Mallikarjun M H', 'Chaithra KM', 'Kamala Subramanian' #skipped: 'Ravi Shankar H N'
+]
 
 # print(blr_df['operating_doctor'].value_counts())
 
@@ -73,13 +77,15 @@ for i, row in df.iterrows():
     print(f"Timestamp: {row['ts']}")
     if surgery_date < pd.to_datetime(datetime.now().date() - pd.DateOffset(days=7)):
         print("Skipping")
+        patient_table.delete_entity(row['PartitionKey'], row['RowKey'])
         continue
     if row['operating_doctor'] not in doctors_for_onboarding:
+        patient_table.delete_entity(row['PartitionKey'], row['RowKey'])
         continue
     print("Onboarding", row['MRD'])
     try:
         medics_onboard.onboard_medics_helper(row)
-        # patient_table.delete_entity(row['PartitionKey'], row['RowKey'])
+        patient_table.delete_entity(row['PartitionKey'], row['RowKey'])
     except Exception as e:
         print(traceback.format_exc())
         continue

@@ -178,3 +178,7 @@ kb_data.jsonl
 
 #environment
 .catbot
+
+#agents
+.github/
+CLAUDE.md

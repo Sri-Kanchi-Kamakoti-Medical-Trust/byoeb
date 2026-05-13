@@ -44,12 +44,13 @@ def get_org_wise_stats(df, orgs, timestamp_col, variable=None):
 
 SPREADSHEET_ID = os.environ['SPREADSHEET_ID'].strip()
 
-orgs = ["BLR", "HYD", "JAI"]
+orgs = ["BLR", "HYD", "JAI", "SMG"]
 
 unit_info = {
     "BLR": "Bangalore",
     "HYD": "Hyderabad",
     "JAI": "Jaipur",
+    "SMG": "Shimoga",
 }
 
 def send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboarding_responses_df, lang_poll_responses_df):

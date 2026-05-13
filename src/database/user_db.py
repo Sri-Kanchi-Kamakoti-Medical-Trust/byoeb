@@ -35,12 +35,10 @@ class UserDB(BaseDB):
         db_id = self.collection.insert_one(user)
         return db_id
     
-    @cached(cache)
     def get_from_user_id(self, user_id):
         user = self.collection.find_one({'user_id': user_id})
         return user
 
-    @cached(cache)
     def get_from_whatsapp_id(self, whatsapp_id):
         user = self.collection.find_one({'whatsapp_id': whatsapp_id})
         return user
