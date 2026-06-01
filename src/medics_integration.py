@@ -162,6 +162,11 @@ class OnboardMedics:
             counsellor_name = self.unit_onboarding_data[unit]['default_counsellor']
 
         counsellor_row = self.user_db.collection.find_one({'user_name': counsellor_name, 'user_type': 'Counsellor', 'org_id': unit_data['org_id']})
+
+        if counsellor_row is None:
+            print("Counsellor not found, using default counsellor")
+            counsellor_row = self.user_db.collection.find_one({'user_name': unit_data['default_counsellor'], 'user_type': 'Counsellor', 'org_id': unit_data['org_id']})
+
         counsellor_user_id = counsellor_row['user_id']
 
         self.user_relations_db.insert_row(
