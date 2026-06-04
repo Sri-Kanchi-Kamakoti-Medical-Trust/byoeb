@@ -63,12 +63,12 @@ df['ts'] = df['ts'].dt.tz_convert(None)  # Convert to naive datetime
 df = df[df['ts'] > (pd.to_datetime(datetime.now()) - pd.DateOffset(weeks=2))]
 print(df['ts'].min())
 
-doctors_for_onboarding = ['Umesh', 'Anand Balasubramaniam', 'Sowmya R', 'Vidhya C', 'Shalini R', 
+doctors_for_onboarding = ['Umesh', 'Sowmya R', 'Shashidhar V S', 'Nidhi Dubey', 'Lalitha K J', 'Meena Gopinath Menon', 'Anand Balasubramaniam', 'Vidhya C', 'Minija C K', 'Shalini R', 
                           'Venkata Prabhakar Guduru', 'Macwana Palak Niranjan', 'M P Deepika', 'Polkampally Sirisha', 'Balam Pradeep', 
                           'Neeraj Shah', 'Jaswant Singh', 'Amit Mohan', 'Visweswaran S', 'Surabhi Khandelwal',
                           'Rajashekar J', 'Mahesha S', 'Roopasree B V', 'Kavitha Venkatachalam', 'Mallikarjun M H', 'Chaithra KM', 'Kamala Subramanian', #skipped: 'Ravi Shankar H N'
                           'Shruthi Tara', 'Jagadeesh Kumar Reddy K', 'Prabhu Shankar M', 'Ajita S', 'Rajesh Prabu', 'Geetha G', 'Prabhu Vijayaraghavan', 'Devi Priya', 'Vandhana Sundaram', 'Suruthi Nagarajan', 'Brindha S',
-]       
+]    
 
 
 # print(blr_df['operating_doctor'].value_counts())
