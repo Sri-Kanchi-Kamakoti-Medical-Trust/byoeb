@@ -64,6 +64,7 @@ df = df[df['ts'] > (pd.to_datetime(datetime.now()) - pd.DateOffset(weeks=2))]
 print(df['ts'].min())
 
 doctors_for_onboarding = ['Umesh', 'Sowmya R', 'Shashidhar V S', 'Nidhi Dubey', 'Lalitha K J', 'Meena Gopinath Menon', 'Anand Balasubramaniam', 'Vidhya C', 'Minija C K', 'Shalini R', 
+                          'Divya caculo', 'Rajesh R', 'Payal Naresh Shah', 'Mishra K Divyansh', 'Niharika Singri', 
                           'Venkata Prabhakar Guduru', 'Macwana Palak Niranjan', 'M P Deepika', 'Polkampally Sirisha', 'Balam Pradeep', 
                           'Neeraj Shah', 'Jaswant Singh', 'Amit Mohan', 'Visweswaran S', 'Surabhi Khandelwal',
                           'Rajashekar J', 'Mahesha S', 'Roopasree B V', 'Kavitha Venkatachalam', 'Mallikarjun M H', 'Chaithra KM', 'Kamala Subramanian', #skipped: 'Ravi Shankar H N'
