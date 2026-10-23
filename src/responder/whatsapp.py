@@ -125,7 +125,7 @@ class WhatsappResponder(BaseResponder):
                     "error_code": error["code"],
                     "timestamp": datetime.now(),
                 }
-                print(f"Retrying message: {retry_message_content}")
+                print(f"Retrying message: {message_id} (error {error['code']})")
                 self.retry_queue.send_message(retry_message_content)
                 return
         else:
@@ -171,7 +171,6 @@ class WhatsappResponder(BaseResponder):
         msg_id = msg_object["id"]
         msg_type = msg_object["type"]
 
-        print("Message object: ", msg_object)
 
 
         if self.user_conv_db.get_from_message_id(msg_id) or self.bot_conv_db.get_from_message_id(msg_id) or self.expert_conv_db.get_from_message_id(msg_id):

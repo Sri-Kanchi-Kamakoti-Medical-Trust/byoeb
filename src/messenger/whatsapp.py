@@ -59,7 +59,6 @@ class WhatsappMessenger(BaseMessenger):
         )
         msg_output = requests.post(url, json=payload, headers=headers)
 
-        print("Message output: ", msg_output.json())
         try:
             msg_id = msg_output.json()["messages"][0]["id"]
         except KeyError:
@@ -116,7 +115,6 @@ class WhatsappMessenger(BaseMessenger):
         )
 
         msg_output = requests.post(url, json=payload, headers=headers)
-        print(msg_output.json())
         msg_id = msg_output.json()["messages"][0]["id"]
 
         self.logger.add_log(
@@ -410,7 +408,6 @@ class WhatsappMessenger(BaseMessenger):
         )
         msg_output = requests.post(url, json=payload, headers=headers)
 
-        print("Message output: ", msg_output.json())
         msg_id = msg_output.json()["messages"][0]["id"]
 
         self.logger.add_log(
@@ -504,7 +501,6 @@ class WhatsappMessenger(BaseMessenger):
         )
 
         msg_output = requests.post(url, json=payload, headers=headers)
-        print("msg output: ", msg_output.json())
         msg_id = msg_output.json()["messages"][0]["id"]
 
         return msg_id

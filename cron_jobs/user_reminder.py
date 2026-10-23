@@ -109,7 +109,7 @@ for patient in tqdm(all_patients, total=len(all_patients), desc="Processing pati
 
         
     if send_reminder:
-        print(f"Sending reminder to {whatsapp_id} for {reminder_type}")
+        print(f"Sending reminder to {user_id} for {reminder_type}")
         sent_msg_id = messenger.send_template(
             whatsapp_id,
             template_name,

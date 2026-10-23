@@ -22,7 +22,6 @@ class PatientTable():
         entity['RowKey'] = entity['phone_number']
         try:
             self.table_client.create_entity(entity=entity)
-            print(f"Entity inserted: {entity}")
         except ResourceExistsError:
             print("Entity already exists.")
         except Exception as e:
@@ -37,7 +36,7 @@ class PatientTable():
         """Delete an entity from the table."""
         try:
             self.table_client.delete_entity(partition_key=partition_key, row_key=row_key)
-            print(f"Entity deleted: PartitionKey={partition_key}, RowKey={row_key}")
+            print(f"Entity deleted: PartitionKey={partition_key}")
         except Exception as e:
             print(f"Error deleting entity: {e}")
 
@@ -61,7 +60,6 @@ class DoctorAlternateTable():
         entity['RowKey'] = phone_number_primary
         try:
             self.table_client.create_entity(entity=entity)
-            print(f"Entity inserted: {entity}")
         except ResourceExistsError:
             print("Entity already exists.")
         except Exception as e:

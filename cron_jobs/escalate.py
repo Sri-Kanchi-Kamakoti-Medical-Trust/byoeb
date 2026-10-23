@@ -48,7 +48,6 @@ for expert in config["EXPERTS"]:
     for expert_user in expert_users:
         org_mapped_expert[expert_user["org_id"]] = expert_user
     query_type_to_escalation_expert[config["EXPERTS"][expert]] = org_mapped_expert
-print(query_type_to_escalation_expert)
 
 to_ts = datetime.datetime.now() - datetime.timedelta(hours=2)
 from_ts = datetime.datetime.now() - datetime.timedelta(hours=24)

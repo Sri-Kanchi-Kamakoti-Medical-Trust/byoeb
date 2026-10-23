@@ -67,7 +67,6 @@ class KnowledgeBase:
         org_id = row_lt["org_id"]
         if not query_context.endswith("?"):
             query_context += "?"
-        print("Query: ", query_context)
         relevant_chunks_string, relevant_update_chunks_string, citations, chunks, related_questions = hierarchical_rag_retrieve(self.kb_client, query_context, org_id, num_chunks)
         logger.add_log(
             sender_id="bot",
@@ -287,7 +286,6 @@ class KnowledgeBase:
 
         llm_out = get_llm_response(prompt, schema)
         json_output = json.loads(llm_out.strip())
-        print(llm_out)
         next_questions = json_output["questions"]
 
         logger.add_log(

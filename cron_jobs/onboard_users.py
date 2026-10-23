@@ -85,7 +85,7 @@ for i, row in df.iterrows():
     if row['operating_doctor'] not in doctors_for_onboarding:
         patient_table.delete_entity(row['PartitionKey'], row['RowKey'])
         continue
-    print("Onboarding", row['MRD'])
+    print("Onboarding", row['PartitionKey'])
     try:
         medics_onboard.onboard_medics_helper(row)
         patient_table.delete_entity(row['PartitionKey'], row['RowKey'])

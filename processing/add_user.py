@@ -43,7 +43,6 @@ else:
 
 
 expert_row = user_db.collection.find_one({'$and': [{'whatsapp_id': expert_whatsapp_id}, {'user_type': expert_type}]})
-print(expert_row)
 if expert_row is None:
     expert_id = str(uuid4())
     user_db.insert_row(expert_id, expert_whatsapp_id, expert_type, expert_language)
@@ -54,4 +53,4 @@ user_relation_db.insert_row(user_id, expert_id, user_type, expert_type)
 
 hyd_users = user_db.collection.find({'org_id': 'HYD'})
 hyd_users = list(hyd_users)
-print(hyd_users)
+print(len(hyd_users))

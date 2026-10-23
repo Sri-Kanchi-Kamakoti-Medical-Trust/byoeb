@@ -42,7 +42,6 @@ reminder_message = template_messages["expert_verification"]["expert"]["expert_re
 print(reminder_message)
 
 df = pd.DataFrame(list_cursor)
-print(df)
 if len(df) == 0:
     print("No unresolved queries")
     sys.exit(0)
@@ -64,7 +63,7 @@ def send_reminder(phone_number, body, reply_id):
 
 for i, row in tqdm(df.iterrows()):
     print(row.keys())
-    print(row['message_id'], row['message_english'])
+    print(row['message_id'])
     bot_message = bot_conv_db.find_with_transaction_id(row['message_id'], 'poll_primary')
     if not bot_message:
         message_id = row['message_id']
