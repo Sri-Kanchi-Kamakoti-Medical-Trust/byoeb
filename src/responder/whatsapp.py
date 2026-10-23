@@ -25,6 +25,8 @@ from azure.identity import DefaultAzureCredential
 from azure_search import PreverifiedClient
 from llm_utils import QueryRewriter
 from hashlib import md5
+from uuid import uuid4
+import traceback
 
 IDK = "I do not know the answer to your question"
 
@@ -272,6 +274,18 @@ class WhatsappResponder(BaseResponder):
             onboarded=True if message_english == "Yes" else False,
         )
 
+        # Consent evidence must never interrupt onboarding, so failures are only logged.
+        try:
+            self.user_db.record_consent(
+                user_id=row_lt['user_id'],
+                given=message_english == "Yes",
+                message_id=msg_id,
+                notice_message_id=reply_id,
+                language=row_lt['user_language'],
+            )
+        except Exception:
+            traceback.print_exc()
+
         return
     
     def language_onboarding_response(self, msg_object, row_lt):
@@ -374,14 +388,16 @@ class WhatsappResponder(BaseResponder):
             blob_service_client = BlobServiceClient.from_connection_string(connect_str)
             container_name = self.config["AZURE_BLOB_CONTAINER_NAME"].strip()
 
-            blob_name = str(datetime.now()) + "_" + str(row_lt['whatsapp_id']) + ".ogg"
+            # Opaque name: the patient's number must not appear in storage. The name is kept in
+            # user_conversations.audio_blob_path, which is how the file is found again.
+            blob_name = f"{uuid4().hex}.ogg"
             blob_client = blob_service_client.get_blob_client(
                 container=container_name, blob=blob_name
             )
             with open(file=audio_input_file, mode="rb") as data:
                 blob_client.upload_blob(data)
             
-            message_text = self.azure_translate.speech_to_text(audio_input_file[:-3] + "wav", row_lt['user_language'], self.logger)    
+            message_text = self.azure_translate.speech_to_text(audio_input_file[:-3] + "wav", row_lt['user_language'], self.logger)
         
         message_english = self.azure_translate.translate_text(
             message_text, row_lt['user_language'], "en", self.logger
@@ -953,7 +969,9 @@ class WhatsappResponder(BaseResponder):
             blob_service_client = BlobServiceClient.from_connection_string(connect_str)
             container_name = self.config["AZURE_BLOB_CONTAINER_NAME"].strip()
 
-            blob_name = str(datetime.now()) + "_" + str(row_lt['whatsapp_id']) + ".ogg"
+            # Opaque name: the patient's number must not appear in storage. The name is kept in
+            # user_conversations.audio_blob_path, which is how the file is found again.
+            blob_name = f"{uuid4().hex}.ogg"
             blob_client = blob_service_client.get_blob_client(
                 container=container_name, blob=blob_name
             )
@@ -1118,6 +1136,21 @@ class WhatsappResponder(BaseResponder):
             final_citations = "No citations found."
 
         expert = self.category_to_expert[row_query['query_type']]
+
+        # Unit isolation (Quadra AC-01), monitor-only for now: record any
+        # cross-unit notification without blocking it, so a legitimate
+        # shared-expert setup is not broken before the data has been reviewed.
+        patient_org = row_lt.get("org_id")
+        expert_org = expert_row_lt.get("org_id")
+        if patient_org != expert_org:
+            self.logger.add_log(
+                sender_id="bot",
+                receiver_id="bot",
+                message_id=row_query["message_id"],
+                action_type="org_mismatch_expert_notification",
+                details={"patient_org": patient_org, "expert_org": expert_org, "escalation": escalation},
+                timestamp=datetime.now(),
+            )
         
         receiver = expert_row_lt["whatsapp_id"]
         forward_to = expert

@@ -51,8 +51,9 @@ for i, row in tqdm(df.iterrows()):
     print(row.keys())
     # print(row['message_id'], row['message_english'])
     try:
-    # get x numbers of experts randomly
-        experts = userdb.get_random_expert(category_to_expert[df.loc[i, "query_type"]], NUM_EXPERTS)
+    # get x numbers of experts randomly, only from the patient's own unit
+        patient = userdb.get_from_user_id(row['user_id'])
+        experts = userdb.get_random_expert(category_to_expert[df.loc[i, "query_type"]], NUM_EXPERTS, patient['org_id'])
 
         # print(experts)
         

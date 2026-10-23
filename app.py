@@ -10,6 +10,7 @@ import pytz
 from croniter import croniter
 import subprocess
 import json
+import hmac
 from flask import Flask, request
 from time import sleep
 import traceback
@@ -26,6 +27,10 @@ with open("config.yaml") as file:
 
 print("Starting application")
 app = Flask(__name__)
+# Largest observed MEDICS request is well under 1 KB; WhatsApp webhooks are a few KB.
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+if not (os.environ.get("VERIFY_TOKEN") or "").strip():
+    print("WARNING: VERIFY_TOKEN is not set; webhook verification requests will be refused")
 log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)
 
@@ -47,6 +52,23 @@ try:
 except ResourceExistsError:
     pass
 
+# Messages that fail processing are kept here instead of being discarded.
+dead_letter_client = QueueClient.from_connection_string(
+    os.environ["AZURE_STORAGE_CONNECTION_STRING"].strip(), queue_name + "-deadletter"
+)
+try:
+    dead_letter_client.create_queue()
+except ResourceExistsError:
+    pass
+except Exception:
+    traceback.print_exc()
+
+DEAD_LETTER_TTL_SECONDS = 30 * 24 * 60 * 60
+# Must exceed worst-case processing time so a message is not redelivered mid-processing.
+QUEUE_VISIBILITY_TIMEOUT = 300
+QUEUE_STALE_AFTER_SECONDS = 600
+last_queue_poll = datetime.now()
+
 patient_table = PatientTable()
 
 
@@ -54,6 +76,13 @@ patient_table = PatientTable()
 def index():
     print("Request for index page received")
     return "Flask is running!"
+
+@app.route("/health")
+def health():
+    seconds_since_poll = int((datetime.now() - last_queue_poll).total_seconds())
+    if seconds_since_poll > QUEUE_STALE_AFTER_SECONDS:
+        return {"status": "queue_stalled", "seconds_since_last_poll": seconds_since_poll}, 503
+    return {"status": "ok", "seconds_since_last_poll": seconds_since_poll}, 200
 
 @app.route('/medics', methods=['POST'])
 def medics():
@@ -252,14 +281,16 @@ def clear_cache():
 # Define a route for handling webhooks
 @app.route("/webhooks", methods=["GET"])
 def verify_webhook():
-    verify_token = os.environ.get("VERIFY_TOKEN").strip()
+    verify_token = (os.environ.get("VERIFY_TOKEN") or "").strip()
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
-    print("verify token is ", repr(verify_token), mode, repr(token), challenge)
+    if not verify_token:
+        print("Webhook verification refused: VERIFY_TOKEN is not set")
+        return "Forbidden", 403
     if mode and token:
-        if mode == "subscribe" and token == verify_token:
+        if mode == "subscribe" and hmac.compare_digest(token.encode(), verify_token.encode()):
             print("WEBHOOK_VERIFIED")
             return challenge, 200
         else:
@@ -267,44 +298,66 @@ def verify_webhook():
     return "Not Found", 404
 
 
+def dead_letter(message, reason, error=None):
+    """Keep a copy of a message we could not process, then remove it from the main queue.
+
+    Previously such messages were deleted outright, so a patient's message
+    could be lost with no record. The dead-letter copy keeps it for review or
+    re-drive. If the copy fails we still delete, as before, so a poison
+    message can never block the queue.
+    """
+    try:
+        dead_letter_client.send_message(message.content, time_to_live=DEAD_LETTER_TTL_SECONDS)
+    except Exception:
+        traceback.print_exc()
+    logger.add_log(
+        sender_id="queue_processor",
+        receiver_id="Bot",
+        message_id=None,
+        action_type="Message dead-lettered",
+        details={
+            "reason": reason,
+            "queue_message_id": message.id,
+            "dequeue_count": message.dequeue_count,
+            "error": type(error).__name__ if error else None,
+        },
+        timestamp=datetime.now(),
+    )
+    queue_client.delete_message(message)
+
+
 def process_queue():
     print("Starting queue processing")
-    global pause_queue
-    global config, logger
+    global last_queue_poll
     # while the queue is non empty, retrieve the top massage and process it
     while True:
-        queue_lock.acquire()
-        if pause_queue:
-            print("Pausing queue processing")
-            sleep(0.01)
-            continue
-        try:
-            messages = queue_client.receive_messages(messages_per_page=1, visibility_timeout=5)
-            for message in messages:
+        # The lock is always released, even on the paused path; the old
+        # acquire()/continue on that path never released it.
+        with queue_lock:
+            paused = pause_queue
+            if not paused:
                 try:
-                    if message.dequeue_count > 1:
-                        logger.add_log(
-                            sender_id="queue_processor",
-                            receiver_id="Bot",
-                            message_id=None,
-                            action_type="Dequeue count exceeded",
-                            details={"message": message.content},
-                            timestamp=datetime.now(),
-                        )
-                        queue_client.delete_message(message)
-                        continue
-                    body = json.loads(message.content)
-                    responder.response(body)
-                    queue_client.delete_message(message)
+                    messages = queue_client.receive_messages(
+                        messages_per_page=1, visibility_timeout=QUEUE_VISIBILITY_TIMEOUT
+                    )
+                    for message in messages:
+                        try:
+                            if message.dequeue_count > 1:
+                                dead_letter(message, "dequeue_count_exceeded")
+                                continue
+                            body = json.loads(message.content)
+                            responder.response(body)
+                            queue_client.delete_message(message)
+                        except Exception as e:
+                            print(e)
+                            traceback.print_exc()
+                            dead_letter(message, "processing_error", e)
+                        last_queue_poll = datetime.now()
+                    last_queue_poll = datetime.now()
                 except Exception as e:
                     print(e)
                     traceback.print_exc()
-                    queue_client.delete_message(message)
-        except Exception as e:
-            print(e)
-            traceback.print_exc()
-        queue_lock.release()
-        sleep(0.1)
+        sleep(0.01 if paused else 0.1)
 
 
 Thread(target=process_queue).start()

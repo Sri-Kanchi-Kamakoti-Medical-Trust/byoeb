@@ -21,7 +21,7 @@ with open(config_path) as file:
 
 client = pymongo.MongoClient(os.environ["COSMOS_DB_CONNECTION_STRING"], tlsCAFile=certifi.where())
 db = client[config["COSMOS_DB_NAME"]]
-collection = db[config["COSMOS_DB_COLLECTION"]]
+collection = db[config["COSMOS_USER_COLLECTION"]]
 
 
 cursor = collection.find()

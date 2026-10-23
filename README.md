@@ -27,6 +27,11 @@ BYOeB (Build Your Own Expert Bot) is a platform designed to build expert-in-the-
 ```
 
 ## For ngrok hosting
+> **Warning: local development only.** ngrok, `flask run` and `python3 app.py` must never be used
+> with real patient data or production credentials. Production runs on Azure App Service via
+> `start.sh` (gunicorn, one worker). Use a separate test WhatsApp number, test database and test
+> storage account for any local run.
+
 ```console
 > curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | \
   sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && \

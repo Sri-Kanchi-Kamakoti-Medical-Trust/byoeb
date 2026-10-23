@@ -55,9 +55,10 @@ class UserDB(BaseDB):
             }}
         )
     
-    def get_random_expert(self, expert_type, number_of_experts):
+    def get_random_expert(self, expert_type, number_of_experts, org_id):
+        # org_id is required so a random pick can never cross hospital units.
         pipeline = [
-            {"$match": {"user_type": expert_type}},
+            {"$match": {"user_type": expert_type, "org_id": org_id}},
             {"$sample": {"size": number_of_experts}}
         ]
         experts = list(self.collection.aggregate(pipeline))
@@ -116,6 +117,26 @@ class UserDB(BaseDB):
                 'onboarded': onboarded
             }},
             upsert=True
+        )
+
+    def record_consent(self, user_id, given, message_id, notice_message_id, language):
+        """Stores evidence of the patient's onboarding Yes/No as a consent record.
+
+        Only adds fields to the existing user; nothing is removed or overwritten
+        apart from a previous consent record for the same user.
+        """
+        self.collection.update_one(
+            {'user_id': user_id},
+            {'$set': {
+                'consent_status': 'given' if given else 'declined',
+                'consent_timestamp': datetime.datetime.now(),
+                'consent_message_id': message_id,
+                'consent_notice_message_id': notice_message_id,
+                'consent_notice': 'catbot_onboarding_msg_utility',
+                'consent_language': language,
+                'consent_channel': 'whatsapp',
+                'consent_purpose': 'cataract_surgery_patient_support',
+            }}
         )
 
     def get_all_patients(self):
