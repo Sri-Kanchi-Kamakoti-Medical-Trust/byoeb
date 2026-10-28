@@ -8,7 +8,7 @@ from azure_search import KnowledgeBaseClient
 
 config_path = os.path.join(os.environ['APP_PATH'], 'config.yaml')
 with open(config_path) as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 
 
 

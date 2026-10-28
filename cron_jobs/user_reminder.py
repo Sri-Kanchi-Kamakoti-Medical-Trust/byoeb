@@ -4,7 +4,7 @@ import os
 
 local_path = os.environ["APP_PATH"]
 with open(os.path.join(local_path, "config.yaml")) as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 import sys
 
 sys.path.append(local_path + "/src")
@@ -30,6 +30,7 @@ user_conv_db = UserConvDB(config)
 all_patients = user_db.get_all_patients()
 
 total_reminders = 0
+failed_reminders = 0
 
 for patient in tqdm(all_patients, total=len(all_patients), desc="Processing patients"):
     user_id = patient["user_id"]
@@ -110,11 +111,17 @@ for patient in tqdm(all_patients, total=len(all_patients), desc="Processing pati
         
     if send_reminder:
         print(f"Sending reminder to {user_id} for {reminder_type}")
-        sent_msg_id = messenger.send_template(
-            whatsapp_id,
-            template_name,
-            user_language
-        )
+        # One rejected number (blocked, invalid) used to stop the whole run.
+        try:
+            sent_msg_id = messenger.send_template(
+                whatsapp_id,
+                template_name,
+                user_language
+            )
+        except Exception as e:
+            print(f"Reminder failed for {user_id}: {type(e).__name__}")
+            failed_reminders += 1
+            continue
 
         logger.add_log(
             sender_id="bot",
@@ -126,4 +133,13 @@ for patient in tqdm(all_patients, total=len(all_patients), desc="Processing pati
         )
         total_reminders += 1
 
-print(f"Total reminders sent: {total_reminders}")
+print(f"Total reminders sent: {total_reminders}, failed: {failed_reminders}")
+if failed_reminders:
+    logger.add_log(
+        sender_id="bot",
+        receiver_id="bot",
+        message_id=None,
+        action_type="Reminder send failures",
+        details={"sent": total_reminders, "failed": failed_reminders},
+        timestamp=datetime.datetime.now(),
+    )

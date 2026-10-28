@@ -2,6 +2,8 @@ import requests, uuid
 import os
 import azure.cognitiveservices.speech as speechsdk
 from datetime import datetime
+# Without a timeout a hung HTTP call can block patient message processing indefinitely.
+HTTP_TIMEOUT = (10, 60)
 
 
 class translator:
@@ -54,7 +56,7 @@ class translator:
         body = [{"text": input_text}]
 
         request = requests.post(
-            self.translation_url, params=params, headers=headers, json=body
+            self.translation_url, params=params, headers=headers, json=body, timeout=HTTP_TIMEOUT
         )
         response = request.json()
 
@@ -98,7 +100,7 @@ class translator:
         body = [{"text": text} for text in input_texts]
 
         request = requests.post(
-            self.translation_url, params=params, headers=headers, json=body
+            self.translation_url, params=params, headers=headers, json=body, timeout=HTTP_TIMEOUT
         )
         response = request.json()
 

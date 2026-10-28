@@ -4,7 +4,7 @@ import os
 
 config_path = os.path.join(os.environ["APP_PATH"], "config.yaml")
 with open(config_path) as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 
 BASE_PROMPT = '''If the query can be truthfully and factually answered using the knowledge base only, answer it concisely in a polite and professional way. If not, then just say "I do not know the answer to your question".\n\
 Incase of a conflict between raw knowledge base and new knowledge base, prefer the new knowledge base.\n\

@@ -12,6 +12,10 @@ from openai import OpenAI, AzureOpenAI
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from googleapiclient.errors import HttpError
 
+# Without a timeout a single slow AI call could hold the message queue for 10+ minutes.
+LLM_TIMEOUT_SECONDS = 60
+LLM_MAX_ATTEMPTS = 3
+
 def get_client_with_token_provider():
     token_provider = get_bearer_token_provider(
         DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
@@ -22,12 +26,14 @@ def get_client_with_token_provider():
         azure_ad_token_provider=token_provider,
         api_version=os.environ["OPENAI_API_VERSION"].strip(),
         azure_endpoint=os.environ["OPENAI_API_ENDPOINT"].strip(),
+        timeout=LLM_TIMEOUT_SECONDS,
     )
 
 def get_client_with_key():
     return OpenAI(
         api_key = os.environ['OPENAI_API_KEY'].strip(),
         organization=os.environ['OPENAI_ORG_ID'].strip(),
+        timeout=LLM_TIMEOUT_SECONDS,
     )
 
 def get_llm_response(prompt, schema=None):
@@ -47,9 +53,10 @@ def get_llm_response(prompt, schema=None):
     else:
         client = get_client_with_token_provider()
 
-    i = 1
-    flag = False
-    while not flag:
+    # Bounded retries: this used to retry forever, so a request the AI service
+    # always rejects (e.g. a content-filter block) froze message processing.
+    delay = 1
+    for attempt in range(1, LLM_MAX_ATTEMPTS + 1):
         try:
             response = client.chat.completions.create(
                 model=model_engine,
@@ -57,15 +64,13 @@ def get_llm_response(prompt, schema=None):
                 temperature=0,
                 response_format=response_format,
             )
-            flag = True
+            break
         except Exception as e:
-            print(e)
-            flag = False
-            time.sleep(i)
-            if i <= 64:
-                i = i * 2
-            else:
-                i = 1
+            print(f"LLM call failed (attempt {attempt}/{LLM_MAX_ATTEMPTS}): {type(e).__name__}: {e}")
+            if attempt == LLM_MAX_ATTEMPTS:
+                raise
+            time.sleep(delay)
+            delay = min(delay * 2, 16)
     # print("Respnse: ", response)
     response_text = response.choices[0].message.content.strip()
     return response_text

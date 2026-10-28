@@ -6,7 +6,7 @@ import os
 
 local_path = os.environ["APP_PATH"]
 with open(local_path + "/config.yaml") as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 
 sys.path.append(local_path.strip() + "/src")
 
@@ -58,6 +58,12 @@ list_cursor = user_conv_db.get_all_unresolved(from_ts, to_ts)
 df = pd.DataFrame(list_cursor)
 
 if len(df) == 0:
+    print("No unresolved queries")
+    sys.exit(0)
+
+# Onboarding and language replies are stored without a query_type; when the
+# window holds only those, there is nothing to escalate (this used to crash).
+if 'query_type' not in df.columns:
     print("No unresolved queries")
     sys.exit(0)
 

@@ -12,7 +12,7 @@ from knowledge_base import KnowledgeBase
 print(os.path.join(local_path, "config.yaml"))
 
 with open(os.path.join(local_path, "config.yaml")) as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 
 
 knowledge_base = KnowledgeBase(config)

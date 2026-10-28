@@ -205,6 +205,9 @@ class WhatsappResponder(BaseResponder):
                 
                 if context_row['message_type'] == 'lang_poll_onboarding':
                     self.language_onboarding_response(msg_object, row_lt)
+                    # Without this return the language tap also fell through to
+                    # handle_response_user and crashed there (no text to answer).
+                    return
 
 
 
@@ -214,6 +217,17 @@ class WhatsappResponder(BaseResponder):
             self.handle_response_expert(msg_object, row_lt)
 
         return
+
+    def log_unhandled_message(self, msg_object, row_lt, reason):
+        # Type only, no content: makes silently-ignored message kinds visible.
+        self.logger.add_log(
+            sender_id="bot",
+            receiver_id="bot",
+            message_id=msg_object.get("id"),
+            action_type="unhandled message type",
+            details={"type": msg_object.get("type"), "reason": reason, "org_id": row_lt.get("org_id")},
+            timestamp=datetime.now(),
+        )
 
     def handle_unsupported_msg_types(self, msg_object, row_lt):
         # print("Handling unsupported message types")
@@ -364,6 +378,10 @@ class WhatsappResponder(BaseResponder):
         msg_id = msg_object["id"]
         from_number = msg_object["from"]
         msg_type = msg_object["type"]
+
+        if msg_type not in ("text", "interactive", "audio"):
+            self.log_unhandled_message(msg_object, row_lt, "expired_user")
+            return
 
         if msg_type == "text" or msg_type == "interactive":
             blob_name = None
@@ -987,6 +1005,12 @@ class WhatsappResponder(BaseResponder):
                 details={"message": msg_text, "reply_to": None},
                 timestamp=datetime.now(),
             )
+
+        # Message types with no text to answer (e.g. a template button tap)
+        # previously reached the AI with no text and then crashed.
+        if msg_text is None:
+            self.log_unhandled_message(msg_object, row_lt, "no_text")
+            return
     
 
         conv_history = row_lt.get("conv_history", [])

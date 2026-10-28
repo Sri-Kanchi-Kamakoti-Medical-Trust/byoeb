@@ -23,7 +23,7 @@ from az_table import PatientTable
 from utils import is_older_than_n_minutes
 
 with open("config.yaml") as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 
 print("Starting application")
 app = Flask(__name__)
@@ -43,6 +43,7 @@ if config["CHAT_APPLICATION"] == "whatsapp":
 
 pause_queue = False
 queue_lock = Lock()
+scheduler_lock = Lock()
 
 queue_name = os.environ["AZURE_QUEUE_NAME"].strip()
 queue_client = QueueClient.from_connection_string(os.environ["AZURE_STORAGE_CONNECTION_STRING"].strip(), queue_name)
@@ -64,9 +65,10 @@ except Exception:
     traceback.print_exc()
 
 DEAD_LETTER_TTL_SECONDS = 30 * 24 * 60 * 60
-# Must exceed worst-case processing time so a message is not redelivered mid-processing.
-QUEUE_VISIBILITY_TIMEOUT = 300
-QUEUE_STALE_AFTER_SECONDS = 600
+# Must exceed worst-case processing time so a message is not redelivered mid-processing
+# (an AI call can take up to ~9 minutes in the worst case: 3 attempts x client retries x 60s).
+QUEUE_VISIBILITY_TIMEOUT = 900
+QUEUE_STALE_AFTER_SECONDS = 1200
 last_queue_poll = datetime.now()
 
 patient_table = PatientTable()
@@ -203,10 +205,24 @@ def scheduler():
         details={},
         timestamp=str(datetime.now()),
     )
-    # stop the process queue
-    global pause_queue, queue_lock
-    queue_lock.acquire()
-    pause_queue = True
+    # Checked before taking any lock, so it is reported even if the queue
+    # loop is stuck inside a slow call.
+    seconds_since_poll = int((datetime.now() - last_queue_poll).total_seconds())
+    if seconds_since_poll > QUEUE_STALE_AFTER_SECONDS:
+        logger.add_log(
+            sender_id="Scheduler",
+            receiver_id="Bot",
+            message_id=None,
+            action_type="Queue stalled",
+            details={"seconds_since_last_poll": seconds_since_poll},
+            timestamp=str(datetime.now()),
+        )
+
+    # Uses its own lock, not queue_lock: waiting on queue_lock blocked the only
+    # gunicorn worker whenever a message took long, freezing every endpoint
+    # until gunicorn killed the worker. Jobs run in background threads, so
+    # pausing the queue here served no purpose.
+    scheduler_lock.acquire()
 
     # Get the current time in IST
     now = datetime.now(pytz.timezone("Asia/Kolkata"))
@@ -237,11 +253,10 @@ def scheduler():
     # Persist the check before releasing the lock, so an overlapping
     # /scheduler call can't also see the same job as due and run it twice.
     write_last_scheduler_check(now)
+    scheduler_lock.release()
 
-    # Start the process queue again. Due jobs run in background threads so a
-    # slow one can't block or skip a later one in the same pass.
-    pause_queue = False
-    queue_lock.release()
+    # Due jobs run in background threads so a slow one can't block or skip a
+    # later one in the same pass.
 
     for command in due_commands:
         Thread(target=run_cron_command, args=(command,), daemon=True).start()
@@ -262,16 +277,29 @@ def long_term():
         details=data,
         timestamp=datetime.now()
     )
+    outcome = {"inserted": 0, "already_exists": 0, "quarantined": 0, "failed": 0}
+    error_types = []
     for row in data:
         #make all values string
         for key in row:
             row[key] = str(row[key])
         try:
-            patient_table.insert_data(row)
+            status = patient_table.insert_data(row)
         except Exception as e:
             print(e)
             traceback.print_exc()
-    # print("Medics sankara data received")
+            status = "failed"
+            error_types.append(type(e).__name__)
+        outcome[status] = outcome.get(status, 0) + 1
+    # Counts only (no patient fields), so failed or quarantined records are visible and alertable.
+    logger.add_log(
+        sender_id="Medics",
+        receiver_id="Bot",
+        message_id=None,
+        action_type="Medics intake summary",
+        details={"received": len(data), **outcome, "error_types": sorted(set(error_types))},
+        timestamp=datetime.now(),
+    )
     return "OK", 200
 
 @app.route("/cache-clear", methods=["POST"])
@@ -357,6 +385,14 @@ def process_queue():
                 except Exception as e:
                     print(e)
                     traceback.print_exc()
+                    logger.add_log(
+                        sender_id="queue_processor",
+                        receiver_id="Bot",
+                        message_id=None,
+                        action_type="Queue receive error",
+                        details={"error": type(e).__name__},
+                        timestamp=datetime.now(),
+                    )
         sleep(0.01 if paused else 0.1)
 
 

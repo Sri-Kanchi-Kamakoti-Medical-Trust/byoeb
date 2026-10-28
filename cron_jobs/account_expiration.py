@@ -17,7 +17,7 @@ num_days = 8
     
 config_path = os.path.join(os.environ['APP_PATH'], 'config.yaml')
 with open(config_path) as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 
 client = pymongo.MongoClient(os.environ["COSMOS_DB_CONNECTION_STRING"], tlsCAFile=certifi.where())
 db = client[config["COSMOS_DB_NAME"]]

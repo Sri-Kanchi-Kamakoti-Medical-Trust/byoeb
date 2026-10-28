@@ -10,7 +10,7 @@ local_path = os.environ['APP_PATH']
 import sys
 sys.path.append(local_path + '/src')
 with open(os.path.join(local_path,'config.yaml')) as file:    
-        config = yaml.load(file, Loader=yaml.FullLoader)
+        config = yaml.safe_load(file)
 from app_logging import LoggingDatabase
 from uuid import uuid4
 from database import UserDB, UserConvDB, ExpertConvDB, BotConvDB, UserRelationDB

@@ -6,7 +6,7 @@ import os
 
 local_path = os.environ["APP_PATH"]
 with open(local_path + "/config.yaml") as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 
 sys.path.append(local_path.strip() + "/src")
 

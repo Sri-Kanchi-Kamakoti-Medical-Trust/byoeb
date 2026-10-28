@@ -6,7 +6,7 @@ import sys
 from uuid import uuid4
 sys.path.append(local_path + '/src')
 with open(os.path.join(local_path,'config.yaml')) as file:    
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 
 data_path = os.path.join(local_path, os.environ['DATA_PATH'], "documents")
 folders_to_process = ['SMG']

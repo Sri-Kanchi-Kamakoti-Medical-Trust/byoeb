@@ -7,7 +7,7 @@ import json
 import subprocess
 import yaml
 with open(os.path.join(os.environ['APP_PATH'], 'config.yaml')) as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 
 languages = config['LANGUAGES']
 roles = ["users", "experts"]

@@ -1,6 +1,12 @@
 import os
+from uuid import uuid4
 from azure.data.tables import TableServiceClient, TableClient
 from azure.core.exceptions import ResourceExistsError
+
+# Records that can't be keyed normally are kept here instead of being guessed
+# into a partition. onboard_users.py does not know this unit, so they are never
+# messaged; they stay in the table for review.
+QUARANTINE_PARTITION = "QUARANTINE"
 
 
 class PatientTable():
@@ -13,19 +19,32 @@ class PatientTable():
 
 
     def insert_data(self, entity):
-        """Insert data into the table."""
-        try:
-            entity['PartitionKey'] = entity['MRD'].split('/')[0]
-        except:
-            entity['PartitionKey'] = 1
-            
-        entity['RowKey'] = entity['phone_number']
+        """Insert data into the table.
+
+        Returns "inserted", "already_exists", "quarantined" or "failed".
+        """
+        mrd = str(entity.get('MRD') or '').strip()
+        phone = str(entity.get('phone_number') or '').strip()
+        unit = mrd.split('/')[0].strip() if '/' in mrd else ''
+
+        if unit and phone:
+            entity['PartitionKey'] = unit
+            entity['RowKey'] = phone
+            status = "inserted"
+        else:
+            entity['PartitionKey'] = QUARANTINE_PARTITION
+            entity['RowKey'] = phone or uuid4().hex
+            entity['quarantine_reason'] = "missing_phone" if not phone else ("missing_mrd" if not mrd else "mrd_without_unit")
+            status = "quarantined"
         try:
             self.table_client.create_entity(entity=entity)
+            return status
         except ResourceExistsError:
             print("Entity already exists.")
+            return "already_exists"
         except Exception as e:
             print(f"Error inserting entity: {e}")
+            return "failed"
 
     def fetch_all_rows(self):
         """Fetch all rows from the table."""

@@ -11,6 +11,8 @@ src_path = os.path.join(os.environ["APP_PATH"], "src")
 import requests
 from datetime import datetime
 from messenger.base import BaseMessenger
+# Without a timeout a hung HTTP call can block patient message processing indefinitely.
+HTTP_TIMEOUT = (10, 60)
 
 @dataclass
 class TemplateParameters():   
@@ -57,7 +59,7 @@ class WhatsappMessenger(BaseMessenger):
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
-        msg_output = requests.post(url, json=payload, headers=headers)
+        msg_output = requests.post(url, json=payload, headers=headers, timeout=HTTP_TIMEOUT)
 
         try:
             msg_id = msg_output.json()["messages"][0]["id"]
@@ -114,7 +116,7 @@ class WhatsappMessenger(BaseMessenger):
             + "/messages"
         )
 
-        msg_output = requests.post(url, json=payload, headers=headers)
+        msg_output = requests.post(url, json=payload, headers=headers, timeout=HTTP_TIMEOUT)
         msg_id = msg_output.json()["messages"][0]["id"]
 
         self.logger.add_log(
@@ -151,7 +153,7 @@ class WhatsappMessenger(BaseMessenger):
             + "/messages"
         )
 
-        msg_output = requests.post(url, json=payload, headers=headers)
+        msg_output = requests.post(url, json=payload, headers=headers, timeout=HTTP_TIMEOUT)
         try:
             msg_id = msg_output.json()["messages"][0]["id"]
         except KeyError:
@@ -210,7 +212,7 @@ class WhatsappMessenger(BaseMessenger):
             + "/messages"
         )
 
-        msg_output = requests.post(url, json=payload, headers=headers)
+        msg_output = requests.post(url, json=payload, headers=headers, timeout=HTTP_TIMEOUT)
 
         try:
             msg_id = msg_output.json()["messages"][0]["id"]
@@ -276,7 +278,7 @@ class WhatsappMessenger(BaseMessenger):
             + "/messages"
         )
 
-        msg_output = requests.post(url, json=payload, headers=headers)
+        msg_output = requests.post(url, json=payload, headers=headers, timeout=HTTP_TIMEOUT)
         msg_id = msg_output.json()["messages"][0]["id"]
         self.logger.add_log(
             sender_id="bot",
@@ -340,7 +342,7 @@ class WhatsappMessenger(BaseMessenger):
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
-        msg_output = requests.post(url, json=payload, headers=headers)
+        msg_output = requests.post(url, json=payload, headers=headers, timeout=HTTP_TIMEOUT)
         try:    
             msg_id = msg_output.json()["messages"][0]["id"]
         except KeyError:
@@ -406,7 +408,7 @@ class WhatsappMessenger(BaseMessenger):
             + os.environ["PHONE_NUMBER_ID"]
             + "/messages"
         )
-        msg_output = requests.post(url, json=payload, headers=headers)
+        msg_output = requests.post(url, json=payload, headers=headers, timeout=HTTP_TIMEOUT)
 
         msg_id = msg_output.json()["messages"][0]["id"]
 
@@ -432,7 +434,7 @@ class WhatsappMessenger(BaseMessenger):
 
         headers = {"Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN'].strip()}"}
 
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=HTTP_TIMEOUT)
         data = response.json()
 
         print("Audio output: ", data)
@@ -440,7 +442,7 @@ class WhatsappMessenger(BaseMessenger):
 
         output_file = audio_file
         headers = {"Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN'].strip()}"}
-        response = requests.get(data_url, headers=headers)
+        response = requests.get(data_url, headers=headers, timeout=HTTP_TIMEOUT)
 
         # Save the response content to a file
         with open(output_file, "wb") as file:
@@ -475,7 +477,7 @@ class WhatsappMessenger(BaseMessenger):
             "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN'].strip()}",
         }
         response = requests.request(
-            "POST", url, headers=headers, data=payload, files=files
+            "POST", url, headers=headers, data=payload, files=files, timeout=HTTP_TIMEOUT
         )
 
         data = response.json()
@@ -500,7 +502,7 @@ class WhatsappMessenger(BaseMessenger):
             + "/messages"
         )
 
-        msg_output = requests.post(url, json=payload, headers=headers)
+        msg_output = requests.post(url, json=payload, headers=headers, timeout=HTTP_TIMEOUT)
         msg_id = msg_output.json()["messages"][0]["id"]
 
         return msg_id

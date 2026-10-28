@@ -5,7 +5,7 @@ import os
 import yaml
 
 with open("config.yaml") as file:
-    config = yaml.load(file, Loader=yaml.FullLoader)
+    config = yaml.safe_load(file)
 
 llm_prompts = json.load(open(os.path.join(os.environ["APP_PATH"], os.environ["DATA_PATH"], "llm_prompt.json")))
 persist_directory = os.path.join(
