@@ -221,39 +221,38 @@ def scheduler():
     # Uses its own lock, not queue_lock: waiting on queue_lock blocked the only
     # gunicorn worker whenever a message took long, freezing every endpoint
     # until gunicorn killed the worker. Jobs run in background threads, so
-    # pausing the queue here served no purpose.
-    scheduler_lock.acquire()
+    # pausing the queue here served no purpose. Always released (finally), so
+    # an error here cannot leave every later /scheduler call waiting forever.
+    with scheduler_lock:
+        # Get the current time in IST
+        now = datetime.now(pytz.timezone("Asia/Kolkata"))
+        last_check = read_last_scheduler_check(now)
 
-    # Get the current time in IST
-    now = datetime.now(pytz.timezone("Asia/Kolkata"))
-    last_check = read_last_scheduler_check(now)
+        # Parse the cron schedules
+        with open("cron.txt", "r") as f:
+            lines = f.readlines()
 
-    # Parse the cron schedules
-    with open("cron.txt", "r") as f:
-        lines = f.readlines()
+        due_commands = []
+        for line in lines:
+            # Parse the cron schedule
+            parts = line.strip().split()
+            if not parts:
+                continue
+            cron_expression = " ".join(parts[:5])
+            command = " ".join(parts[5:])
 
-    due_commands = []
-    for line in lines:
-        # Parse the cron schedule
-        parts = line.strip().split()
-        if not parts:
-            continue
-        cron_expression = " ".join(parts[:5])
-        command = " ".join(parts[5:])
+            iter = croniter(cron_expression, now)
+            prev_time = iter.get_prev(datetime)
 
-        iter = croniter(cron_expression, now)
-        prev_time = iter.get_prev(datetime)
+            command = command.replace("$LOCAL_PATH", os.environ["APP_PATH"])
 
-        command = command.replace("$LOCAL_PATH", os.environ["APP_PATH"])
+            # Due if its most recent scheduled time happened since we last checked.
+            if last_check < prev_time <= now:
+                due_commands.append(command)
 
-        # Due if its most recent scheduled time happened since we last checked.
-        if last_check < prev_time <= now:
-            due_commands.append(command)
-
-    # Persist the check before releasing the lock, so an overlapping
-    # /scheduler call can't also see the same job as due and run it twice.
-    write_last_scheduler_check(now)
-    scheduler_lock.release()
+        # Persist the check before releasing the lock, so an overlapping
+        # /scheduler call can't also see the same job as due and run it twice.
+        write_last_scheduler_check(now)
 
     # Due jobs run in background threads so a slow one can't block or skip a
     # later one in the same pass.

@@ -876,8 +876,10 @@ class WhatsappResponder(BaseResponder):
                 all_questions.extend((chunk["metadata"].get("related_questions", [])))
             random.shuffle(all_questions)
             questions_en = all_questions[:3]
-        else:    
-            questions_en = list(row_lt['related_qns'])
+        else:
+            # Patients onboarded without a stored list (older or partial onboarding)
+            # crashed here and got no reply; use the default list onboarding gives everyone.
+            questions_en = list(row_lt.get('related_qns') or self.onboarding_questions["en"]["questions"])
     
         questions_source = self.azure_translate.translate_text_batch(
             questions_en, "en", source_lang
