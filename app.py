@@ -347,10 +347,25 @@ def dead_letter(message, reason, error=None):
             "queue_message_id": message.id,
             "dequeue_count": message.dequeue_count,
             "error": type(error).__name__ if error else None,
+            "where": error_location(error),
+            # AttributeError/TypeError text names only Python types and attributes.
+            "error_text": str(error)[:150] if isinstance(error, (AttributeError, TypeError)) else None,
         },
         timestamp=datetime.now(),
     )
     queue_client.delete_message(message)
+
+
+def error_location(error):
+    """Where an error happened as "file:line function" (last 3 frames).
+
+    Code locations only, never message text, so it is safe to log and tells us
+    which line to fix without reproducing the patient's message.
+    """
+    if error is None or error.__traceback__ is None:
+        return None
+    frames = traceback.extract_tb(error.__traceback__)[-3:]
+    return [f"{os.path.basename(f.filename)}:{f.lineno} {f.name}" for f in frames]
 
 
 def process_queue():
