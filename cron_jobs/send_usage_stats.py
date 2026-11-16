@@ -54,6 +54,24 @@ unit_info = {
     "CBE": "Coimbatore"
 }
 
+def failed_messages_line():
+    """Daily reconciliation (Quadra P1-6): patient messages received but not processed.
+
+    app.py records each dead-lettered message (no content) in the logs collection.
+    """
+    try:
+        logs = UserDB(config).db[config["COSMOS_LOGGING_COLLECTION"]]
+        now = datetime.datetime.now()
+        def count(days):
+            return logs.count_documents({"action_type": "Message dead-lettered",
+                                         "timestamp": {"$gte": now - datetime.timedelta(days=days)}})
+        return (f"Patient messages received but not processed: <b>{count(1)}</b> in the last 24 hours, "
+                f"<b>{count(NUM_DAYS)}</b> in the last {NUM_DAYS} days "
+                f"(copies kept for 30 days in the catbot-queue-deadletter queue).")
+    except Exception as e:
+        return f"Patient messages received but not processed: unavailable ({type(e).__name__})."
+
+
 def send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboarding_responses_df, lang_poll_responses_df):
 
     onboarding_responses_df = onboarding_responses_df.dropna(subset=['user_id'])
@@ -100,6 +118,8 @@ def send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboa
     query_pending_stats = ["Number of queries pending"] + get_org_wise_stats(query_df, orgs, 'query_timestamp', 'pending')
     stats.append(query_pending_stats)
 
+    failed_line = failed_messages_line()
+
     html_message = f"""
     <html>
     <head>
@@ -127,6 +147,8 @@ def send_email_with_stats(users_df, user_query_df, onboarding_messages_df, onboa
         <h4>Overall Stats:</h4>
         {tabulate(stats, tablefmt="html", colalign=('left', 'left'))}
         <br>
+        {failed_line}
+        <br><br>
         Regards,<br>
         CataractBot Team
     </body>

@@ -61,7 +61,7 @@ WhatsApp number, test database and test storage account.
 - `cron_jobs/user_reminder.py`: A reminder message is sent to the users with this script.
 - `cron_jobs/expert_reminder.py`: Used to send reminders to the expert (i.e doctors, staff) to continue interacting with the bot.
 - `cron_jobs/account_expiration.py`: This script automatically expires accounts based on selected field (e.g surgery date for a patient).
-- To execute cronjobs, we use a time trigger Azure function that sends an API request to the bot endpoint. For that, add the cron expressions in `cron.txt`. In the `scheduler` folder, the code for Azure function is also provided.
+- To execute cronjobs, we use a time trigger Azure function that sends an API request to the bot endpoint. For that, add a line with the cron expression and a job name in `cron.txt` (see `SCHEDULED_JOBS` in `app.py`). In the `scheduler` folder, the code for Azure function is also provided. Its `ENDPOINT_URL` must include `?key=<SCHEDULER_KEY>`; the bot refuses `/scheduler` calls without it.
 
 ### Pre-processing
 - `processing/create_llm_prompts.py`: Creates prompts using config.yaml for specific use cases.

@@ -1,5 +1,6 @@
 import regex as re
 import datetime
+import json
 import os
 import openai
 import pickle
@@ -103,16 +104,24 @@ def get_llm_response(prompt, schema=None):
     return response_text
 
 
+_google_service_account_info = None
+
+
+def google_service_account_info():
+    """Google service-account key, read from Key Vault into memory only (Quadra P0-4 / S-02).
+
+    It used to be written to cron_jobs/credentials.json at every start and left on disk.
+    """
+    global _google_service_account_info
+    if _google_service_account_info is None:
+        from azure.keyvault.secrets import SecretClient
+        client = SecretClient(vault_url=os.environ["AZ_KEY_VAULT_URL"].strip(), credential=DefaultAzureCredential())
+        _google_service_account_info = json.loads(client.get_secret("google-sheets-api").value)
+    return _google_service_account_info
+
+
 def gsheet_api_check(SCOPES, local_path):
-    creds = None
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            creds = service_account.Credentials.from_service_account_file(
-                os.path.join(local_path, "cron_jobs/credentials.json")
-            )
-    return creds
+    return service_account.Credentials.from_service_account_info(google_service_account_info())
 
 
 def delete_all_rows(SCOPES, spreadsheet_id, range_name, local_path):

@@ -63,8 +63,7 @@ class RetryClient:
                 return json.loads(modified_content)
                 
             except Exception as e:
-                print(f"Failed to parse message content: {e}")
-                print(f"Content: {message_content}")
+                print(f"Failed to parse message content: {type(e).__name__}")
                 raise
 
     def retry_message_from_azure_queue(self):
@@ -85,7 +84,7 @@ class RetryClient:
                     message_content = message.content.replace("'", "\"")  # Ensure JSON format
                     body = self.parse_message_content(message_content)
                     
-                    print(f"Retrying message: {body}")
+                    print("Retrying one queued message")
                     try:
                         user_row = self.user_db.get_from_whatsapp_id(body["user_whatsapp_id"])
                         prev_msg_obj = self.bot_conv_db.get_from_message_id(body["message_id"])

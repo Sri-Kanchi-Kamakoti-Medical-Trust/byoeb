@@ -82,7 +82,6 @@ for index, row in tqdm(df.iterrows()):
 
     response = get_llm_response(prompt)
 
-    print(response)
     response = json.loads(response)
     if response['answer'] == 'Consensus not reached.':
         continue

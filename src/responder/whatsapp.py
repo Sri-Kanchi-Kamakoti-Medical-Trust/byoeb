@@ -1221,20 +1221,21 @@ class WhatsappResponder(BaseResponder):
 
         expert = self.category_to_expert[row_query['query_type']]
 
-        # Unit isolation (Quadra AC-01), monitor-only for now: record any
-        # cross-unit notification without blocking it, so a legitimate
-        # shared-expert setup is not broken before the data has been reviewed.
+        # Unit isolation (Quadra AC-01 / P1-4), fail closed: a patient's details are
+        # never sent to an expert from another unit. Zero such cases were seen in
+        # monitor-only mode (23 Oct - 16 Nov), so blocking breaks no current flow.
         patient_org = row_lt.get("org_id")
         expert_org = expert_row_lt.get("org_id")
-        if patient_org != expert_org:
+        if not patient_org or patient_org != expert_org:
             self.logger.add_log(
                 sender_id="bot",
                 receiver_id="bot",
                 message_id=row_query["message_id"],
                 action_type="org_mismatch_expert_notification",
-                details={"patient_org": patient_org, "expert_org": expert_org, "escalation": escalation},
+                details={"patient_org": patient_org, "expert_org": expert_org, "escalation": escalation, "blocked": True},
                 timestamp=datetime.now(),
             )
+            return None
         
         receiver = expert_row_lt["whatsapp_id"]
         forward_to = expert

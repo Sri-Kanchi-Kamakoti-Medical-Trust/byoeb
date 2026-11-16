@@ -67,21 +67,18 @@ In this tutorial, you will build a chatbot to enable students to ask questions r
 
 - **Step 5**: Whenever an expert (such as a teacher) provides a correction to the bot, it gets recorded. To push these corrections to the knowledge base (KB), the recommended approach is to get it approved by a Knowledge Base (KB) Update Admin (e.g., a principal) at the end of each day. For that, the BYOeB system provides a way to aggregate all the expert corrections and share them with the KB Update Admin over Google Sheet. In this sheet, the Admin needs to indicate 'Yes' or 'No' against each correction to specify whether that correction should be used to update the KB or not. By default, every day at 8pm, an email gets automatically sent to the KB Update Admin (part of the `EMAIL_LIST` below) with the link of the Google Sheet. Moreover, every day at 3am, based on the KB Admin's responses, the KB gets updated.
     
-    To use google sheets API, you will need to download `credentials.json` from [here](https://developers.google.com/sheets/api/quickstart/python#step_3_set_up_the_sample), and then save it in the `cron_jobs` folder . 
+    To use the Google Sheets API, store the service-account key (the JSON from [here](https://developers.google.com/sheets/api/quickstart/python#step_3_set_up_the_sample)) as the Key Vault secret `google-sheets-api`. The bot reads it into memory when needed; never save it as a file in the repository or on the server.
     
     Fill the following details in `config.yaml`:
 
     ```
     SPREADSHEET_ID: <spreadhsheetID>
     SHEET_LINK: <spreadsheetURL>
-    # sender details
-    EMAIL_ID: <sender-emailID>
-    EMAIL_PASS: <sender-emailID-password>
     # receiver list
     EMAIL_LIST: ["teacher@school.com", "principal@school.com"] 
     ```
 
-    Note: To send an automated email, you need to provide a sender email id with password in the `config.yaml` file (as shown above).
+    Note: the sender email address and password are **secrets** and must never go in `config.yaml` (it is tracked in git). Set them as the app settings `LOGGING_EMAIL_ID` and `LOGGING_EMAIL_PASS`, preferably as Key Vault references.
 
 - **Step 6**: Create a folder named `science_bot` in the `data` folder. 
 
@@ -135,4 +132,4 @@ In this tutorial, you will build a chatbot to enable students to ask questions r
 
 - **Step 11** (optional): The system use CronJobs for (a) sceduling escalation to ESCALATION expert (here senior teacher), and (b) updating KB (both send email to KB Update Admin at 8pm and deploy KB at 3am).
 
-    You can schedule these CronJobs, or even define new ones, that may be relevant for your project in `/cron.txt` file. Learn more about CronJob [here](https://www.hostinger.in/tutorials/cron-job).
+    You can schedule these CronJobs, or even define new ones, in `/cron.txt`. Each line is five cron time fields followed by a **job name** (for example `00 17 * * * generate_and_send_logs`). Only names listed in `SCHEDULED_JOBS` in `app.py` can run, each mapped to a fixed script in `cron_jobs/`; commands and shell syntax are not accepted. Learn more about CronJob [here](https://www.hostinger.in/tutorials/cron-job).
