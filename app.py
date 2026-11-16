@@ -197,12 +197,18 @@ def run_cron_command(command):
 
 @app.route("/scheduler", methods=["POST"])
 def scheduler():
+    # Main-queue length for the queue-depth alert (Quadra P1-8). The storage
+    # metric counts every queue in the shared account, including dead letters.
+    try:
+        queue_depth = queue_client.get_queue_properties().approximate_message_count
+    except Exception:
+        queue_depth = None
     logger.add_log(
         sender_id="Scheduler",
         receiver_id="Bot",
         message_id=None,
         action_type="Scheduler",
-        details={},
+        details={"queue_depth": queue_depth},
         timestamp=str(datetime.now()),
     )
     # Checked before taking any lock, so it is reported even if the queue
