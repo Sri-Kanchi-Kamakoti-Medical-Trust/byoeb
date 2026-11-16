@@ -179,6 +179,8 @@ kb_data.jsonl
 #environment
 .catbot
 
-#agents
-.github/
+#agents (but keep CI and Dependabot config, Quadra P1-9)
+.github/*
+!.github/workflows/
+!.github/dependabot.yml
 CLAUDE.md

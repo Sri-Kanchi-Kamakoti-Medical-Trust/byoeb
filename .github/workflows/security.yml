@@ -1,0 +1,54 @@
+# Quadra P1-9: code quality and dependency checks.
+# - CodeQL scans the Python code on every push and pull request.
+# - Pull requests that add a dependency with a HIGH or CRITICAL vulnerability fail.
+# - pip-audit lists known vulnerabilities in requirements.txt (report only until the
+#   major upgrades are done; see the job summary).
+name: Security checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "30 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+      - uses: github/codeql-action/analyze@v3
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install pip-audit
+      - name: Known vulnerabilities in requirements.txt (report only)
+        run: |
+          pip-audit -r requirements.txt --no-deps --disable-pip --progress-spinner off --format markdown > audit.md || true
+          echo "## pip-audit" >> "$GITHUB_STEP_SUMMARY"
+          cat audit.md >> "$GITHUB_STEP_SUMMARY"
