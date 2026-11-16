@@ -1,6 +1,6 @@
 from datetime import datetime
 import json
-from utils import get_client_with_token_provider, get_client_with_key
+from utils import get_client_with_token_provider, get_client_with_key, record_token_usage
 import os
 import yaml
 
@@ -43,13 +43,12 @@ def hierarchical_rag_augment(retrieved_chunks, system_prompt, query, query_type,
     # Today's date is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n\
     date_today = datetime.now().strftime("%Y-%m-%d")
     user_role = user_context.get("user_type", "")
-    user_gender = user_context.get("patient_gender", "")
-    user_age = user_context.get("patient_age", "")
+    user_gender = user_context.get("patient_gender") or "patient"
     date_surgery = user_context.get("patient_surgery_date", "")
     user_language = user_context.get("user_language", "en")
     
     query_prompt = f"<query_type>{query_type}</query_type>\n<query_en_addcontext>{query}</query_en_addcontext>\n\
-        This query was originally asked in by a(n) <user_role>{user_role}</user_role> who is a <user_gender>{user_gender}</user_gender> aged <user_age>{user_age}</user_age> years.\
+        This query was originally asked in by a(n) <user_role>{user_role}</user_role> who is a <user_gender>{user_gender}</user_gender>.\
         The user speaks <user_language>{user_language}</user_language>.\n\
         The patient’s surgery is scheduled for <date_surgery>{date_surgery}</date_surgery>, and today’s date is <date_today>{date_today}</date_today>.\n\
         <raw_knowledge_base>{retrieved_chunks[0]}</raw_knowledge_base>\n<new_knowledge_base>{retrieved_chunks[1]}</new_knowledge_base>" 
@@ -65,6 +64,7 @@ def hierarchical_rag_generate(prompt, schema=None):
             messages=prompt,
             temperature=0,
         )
+        record_token_usage(response, "hierarchical_rag")
         response_text = response.choices[0].message.content.strip()
         return response_text
     
@@ -74,6 +74,7 @@ def hierarchical_rag_generate(prompt, schema=None):
         temperature=0,
         response_format= { "type": "json_schema", "json_schema": schema }
     )
+    record_token_usage(response, "hierarchical_rag")
     response_text = response.choices[0].message.content.strip()
     return response_text
 

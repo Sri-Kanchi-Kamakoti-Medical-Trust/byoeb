@@ -75,6 +75,14 @@ class UserConvDB(BaseDB):
         db_id = self.collection.insert_one(user_conv)
         return db_id
     
+    def count_questions_since(self, user_id, since):
+        """Number of questions (text, voice or suggested-question taps) a user sent since a time."""
+        return self.collection.count_documents({
+            'user_id': user_id,
+            'message_timestamp': {'$gte': since},
+            'message_type': {'$in': ['text', 'audio', 'interactive']},
+        })
+
     def get_from_db_id(self, db_id):
         user_conv = self.collection.find_one({'_id': db_id})
         return user_conv

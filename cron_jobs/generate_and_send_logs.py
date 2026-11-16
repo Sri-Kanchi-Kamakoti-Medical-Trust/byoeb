@@ -289,9 +289,6 @@ users_df_to_log.rename(
         # 'user_id': 'User ID',
         'patient_id': 'Patient ID',
         'timestamp': 'Patient Onboarding Date',
-        'patient_name': 'Patient Name',
-        'patient_age': 'Patient Age',
-        'patient_gender': 'Patient Gender',
         'patient_surgery_date': 'Patient Surgery Date',
         'onboarding_message_status': 'Onboarding Message Status',
         'onboarding_response': 'Onboarding Response',
@@ -302,7 +299,8 @@ users_df_to_log.rename(
     }, inplace=True
 )
 
-users_df_to_log = users_df_to_log[['Patient ID', 'Patient Onboarding Date', 'Patient Name', 'Patient Age', 'Patient Gender', 'Patient Surgery Date', 'Onboarding Message Status', 'Onboarding Response', 'Unit', 'Number of Messages Sent']].copy()
+# Patient ID only: name, age and gender are not exported (Quadra P0-5, Sankara decision).
+users_df_to_log = users_df_to_log[['Patient ID', 'Patient Onboarding Date', 'Patient Surgery Date', 'Onboarding Message Status', 'Onboarding Response', 'Unit', 'Number of Messages Sent']].copy()
 users_df_to_log['Unit'] = users_df_to_log['Unit'].map(unit_info)
 users_df_to_log['Patient Surgery Date'] = pd.to_datetime(users_df_to_log['Patient Surgery Date'], errors='coerce').dt.strftime('%d-%m-%Y')
 

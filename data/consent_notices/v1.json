@@ -1,0 +1,65 @@
+{
+  "version": "v1",
+  "template_name": "catbot_onboarding_msg_utility",
+  "purpose": "cataract_surgery_patient_support",
+  "channel": "whatsapp",
+  "recorded_on": "2026-11-16",
+  "note": "Text exactly as approved by Meta and sent to patients. Copied from the Meta template API on the recorded_on date. A changed notice must be added as a new file (v2.json) with CURRENT_VERSION updated in src/database/user_db.py; never edit an existing version.",
+  "sha256": "a756b685005f74bd90bfa9e42225fcdad39a9c0249484e78512edbc2719d94e4",
+  "languages": {
+    "en": {
+      "body": "Hi, this is a service message from Sankara Eye Hospital regarding your cataract surgery consultation. I am Cataract Bot an automated assistant working alongside doctors and counsellors to answer questions you may have about cataract surgery, including procedure details, preparation steps, and recovery guidance. To proceed, please click *Yes*.",
+      "buttons": [
+        "Yes",
+        "No"
+      ],
+      "meta_template_id": "24892854513686410",
+      "meta_status": "APPROVED"
+    },
+    "hi": {
+      "body": "नमस्ते, यह संदेश संकरा आई हॉस्पिटल की ओर से आपकी मोतियाबिंद सर्जरी परामर्श के संबंध में है। मैं कैटरेक्ट बॉट हूँ — एक स्वचालित सहायक जो डॉक्टरों और परामर्शदाताओं के साथ मिलकर आपकी मोतियाबिंद सर्जरी से जुड़ी जानकारी, तैयारी के चरण और रिकवरी से संबंधित प्रश्नों के उत्तर देने में मदद करता हूँ। आगे बढ़ने के लिए कृपया *हाँ* पर क्लिक करें।",
+      "buttons": [
+        "हाँ",
+        "नहीं"
+      ],
+      "meta_template_id": "772376265815900",
+      "meta_status": "APPROVED"
+    },
+    "kn": {
+      "body": "ನಮಸ್ಕಾರ, ಇದು ಶಂಕರ ಕಣ್ಣಿನ ಆಸ್ಪತ್ರೆಯಿಂದ ನಿಮ್ಮ ಮುತ್ತಿನ ಕಣ್ಣಿನ ಶಸ್ತ್ರಚಿಕಿತ್ಸೆ ಸಲಹೆಗೆ ಸಂಬಂಧಿಸಿದ ಸೇವಾ ಸಂದೇಶ. ನಾನು ಕ್ಯಾಟರಾಕ್ಟ್ ಬಾಟ್ — ವೈದ್ಯರು ಮತ್ತು ಸಲಹೆಗಾರರೊಂದಿಗೆ ಕೆಲಸ ಮಾಡುವ ಸಹಾಯಕ ಬಾಟ್. ಶಸ್ತ್ರಚಿಕಿತ್ಸೆ, ತಯಾರಿ ಹಂತಗಳು ಮತ್ತು ಚೇತರಿಕೆ ಕುರಿತು ನಿಮ್ಮ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರ ನೀಡುತ್ತೇನೆ. ಮುಂದುವರೆಯಲು ದಯವಿಟ್ಟು *ಹೌದು* ಕ್ಲಿಕ್ ಮಾಡಿ.",
+      "buttons": [
+        "ಹೌದು",
+        "ಇಲ್ಲ"
+      ],
+      "meta_template_id": "1266832225201168",
+      "meta_status": "APPROVED"
+    },
+    "ta": {
+      "body": "வணக்கம், இது சங்கரா கண் மருத்துவமனையிலிருந்து உங்கள் மூக்கு மஞ்சள் அறுவை சிகிச்சை ஆலோசனைக்கான சேவைச் செய்தி. நான் 'கேடராக்ட் பாட்டாக' இருக்கிறேன் — மருத்தவர்கள் மற்றும் ஆலோசகர்களுடன் இணைந்து செயல்படும் தானியங்கி உதவியாளர். அறுவை சிகிச்சை நடைமுறை, தயாரிப்பு நடவடிக்கைகள் மற்றும் மீட்பு வழிகாட்டுதல் குறித்து உங்கள் கேள்விகளுக்கு பதில் அளிக்கிறேன். தொடர்வதற்கு தயவுசெய்து *ஆம்* என்பதைக் கிளிக் செய்யவும்.",
+      "buttons": [
+        "ஆம்",
+        "இல்லை"
+      ],
+      "meta_template_id": "1732299790790170",
+      "meta_status": "APPROVED"
+    },
+    "te": {
+      "body": "నమస్తే, ఇది శంకర ఐ హాస్పిటల్ నుండి మీ ముత్యబిందు శస్త్రచికిత్స కన్సల్టేషన్‌కు సంబంధించిన సేవా సందేశం. నేను క్యాటరాక్ట్ బాట్ — డాక్టర్లు మరియు కౌన్సిలర్లతో కలిసి పనిచేసే ఆటోమేటెడ్ సహాయకుడు. ముత్యబిందు శస్త్రచికిత్స విధానం, సిద్ధం చేసే దశలు మరియు కోలుకునే మార్గదర్శకాల గురించి మీ ప్రశ్నలకు సమాధానాలు ఇస్తాను. కొనసాగడానికి దయచేసి *అవును* పై క్లిక్ చేయండి.",
+      "buttons": [
+        "అవును",
+        "లేదు"
+      ],
+      "meta_template_id": "660463800251902",
+      "meta_status": "APPROVED"
+    },
+    "ur": {
+      "body": "سلام، یہ پیغام شنکرا آئی اسپتال کی جانب سے آپ کے موتیا بند سرجری کے مشورے کے سلسلے میں ہے۔ میں کیٹرکٹ بوٹ ہوں — ایک خودکار معاون جو ڈاکٹروں اور مشیروں کے ساتھ مل کر آپ کے موتیا بند کے طریقہ کار، تیاری کے مراحل اور صحتیابی کے بارے میں سوالات کے جوابات دینے میں مدد کرتا ہوں۔ آگے بڑھنے کے لیے براہِ کرم *جی ہاں* پر کلک کریں۔",
+      "buttons": [
+        "جی ہاں۔",
+        "نہیں۔"
+      ],
+      "meta_template_id": "755559824176698",
+      "meta_status": "APPROVED"
+    }
+  }
+}

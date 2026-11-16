@@ -16,6 +16,32 @@ from googleapiclient.errors import HttpError
 LLM_TIMEOUT_SECONDS = 60
 LLM_MAX_ATTEMPTS = 3
 
+
+def ffmpeg_exe():
+    """Path to ffmpeg. It ships inside the imageio-ffmpeg pip package, so start.sh no
+    longer installs it with apt-get as root on every restart (Quadra P1-10)."""
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return "ffmpeg"
+
+
+def record_token_usage(response, source):
+    """Send token counts (numbers only) to Application Insights for the daily spend alert (Quadra P1-8)."""
+    try:
+        from azure.monitor.events.extension import track_event
+        usage = response.usage
+        track_event("LLM tokens", {
+            "source": source,
+            "model": str(getattr(response, "model", "")),
+            "prompt_tokens": str(usage.prompt_tokens),
+            "completion_tokens": str(usage.completion_tokens),
+            "total_tokens": str(usage.total_tokens),
+        })
+    except Exception:
+        pass
+
 def get_client_with_token_provider():
     token_provider = get_bearer_token_provider(
         DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
@@ -72,6 +98,7 @@ def get_llm_response(prompt, schema=None):
             time.sleep(delay)
             delay = min(delay * 2, 16)
     # print("Respnse: ", response)
+    record_token_usage(response, "get_llm_response")
     response_text = response.choices[0].message.content.strip()
     return response_text
 

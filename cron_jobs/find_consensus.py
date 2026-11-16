@@ -22,6 +22,7 @@ from app_logging import (
 
 import subprocess
 from utils import get_llm_response, remove_extra_voice_files
+import utils
 
 MIN_CONSENSUS_RESPONSES = 3
 
@@ -107,7 +108,7 @@ for index, row in tqdm(df.iterrows()):
 
         subprocess.run(
             [
-                "ffmpeg",
+                utils.ffmpeg_exe(),
                 "-i",
                 corrected_audio_loc,
                 "-codec:a",

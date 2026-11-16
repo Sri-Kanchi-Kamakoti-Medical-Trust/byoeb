@@ -154,3 +154,4 @@ wrapt==1.16.0
 yarl==1.13.1
 zipp==3.16.2
 zstandard==0.21.0
+imageio-ffmpeg==0.7.0

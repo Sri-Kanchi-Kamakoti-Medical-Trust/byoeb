@@ -8,6 +8,16 @@ from azure.core.exceptions import ResourceExistsError
 # messaged; they stay in the table for review.
 QUARANTINE_PARTITION = "QUARANTINE"
 
+# Sankara policy: patient name and age are never stored. Gender is kept in the
+# database only, because answers use it for grammar in Indian languages.
+NOT_STORED_FIELDS = ("name", "age")
+NOT_LOGGED_FIELDS = ("name", "age", "gender")
+
+
+def without_fields(record, fields):
+    """Copy of a MEDICS record without the given fields."""
+    return {k: v for k, v in record.items() if k not in fields}
+
 
 class PatientTable():
 
@@ -23,6 +33,8 @@ class PatientTable():
 
         Returns "inserted", "already_exists", "quarantined" or "failed".
         """
+        for field in NOT_STORED_FIELDS:
+            entity.pop(field, None)
         mrd = str(entity.get('MRD') or '').strip()
         phone = str(entity.get('phone_number') or '').strip()
         unit = mrd.split('/')[0].strip() if '/' in mrd else ''

@@ -4,7 +4,7 @@ from io import BytesIO
 import os
 from azure_language_tools import translator
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 from azure.storage.blob import BlobServiceClient
 from azure.storage.queue import QueueClient
 from azure.core.exceptions import ResourceExistsError
@@ -88,6 +88,11 @@ class WhatsappResponder(BaseResponder):
 
         for expert in self.config["EXPERTS"]:
             self.category_to_expert[self.config["EXPERTS"][expert]] = expert
+
+        # Quadra P1-8: per-patient limits (patients only; doctors are not limited).
+        self.max_daily_questions = int(self.config.get("MAX_DAILY_QUESTIONS", 20))
+        self.max_question_chars = int(self.config.get("MAX_QUESTION_CHARS", 500))
+        self._limit_text_cache = {}
 
     def check_user_type(self, from_number):
         row = self.user_db.get_from_whatsapp_id(from_number)
@@ -398,7 +403,7 @@ class WhatsappResponder(BaseResponder):
             utils.remove_extra_voice_files(audio_input_file, audio_output_file)
             self.messenger.download_audio(msg_object, audio_input_file)
             subprocess.call(
-                ["ffmpeg", "-i", audio_input_file, audio_input_file[:-3] + "wav"],
+                [utils.ffmpeg_exe(), "-i", audio_input_file, audio_input_file[:-3] + "wav"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -915,6 +920,47 @@ class WhatsappResponder(BaseResponder):
             transaction_message_id=row_query['message_id'],
         )
 
+    LIMIT_MESSAGES = {
+        "daily_limit": "You have reached today's limit of {limit} questions. Please ask again tomorrow. For anything urgent, please call the hospital.",
+        "too_long": "Your message is too long. Please send a shorter question, in two or three sentences. For anything urgent, please call the hospital.",
+    }
+
+    def over_daily_question_limit(self, row_lt):
+        """True if the patient already asked the daily maximum in the last 24 hours (Quadra P1-8).
+
+        Fails open: if the count cannot be read, the patient is answered as usual.
+        """
+        try:
+            since = datetime.now() - timedelta(hours=24)
+            return self.user_conv_db.count_questions_since(row_lt['user_id'], since) >= self.max_daily_questions
+        except Exception as e:
+            print(f"Question limit check failed: {type(e).__name__}")
+            return False
+
+    def send_limit_message(self, row_lt, msg_id, reason):
+        """Polite reply in the patient's language when a P1-8 limit is hit. The question is not processed."""
+        lang = row_lt['user_language']
+        key = (reason, lang)
+        if key not in self._limit_text_cache:
+            text = self.LIMIT_MESSAGES[reason].replace("{limit}", str(self.max_daily_questions))
+            if lang != "en":
+                try:
+                    text = self.azure_translate.translate_text(text, "en", lang, self.logger)
+                except Exception:
+                    pass
+            self._limit_text_cache[key] = text
+        phone = self.unit_contact["phone_number"].get(row_lt.get('org_id'), "")
+        text = self._limit_text_cache[key] + (f"\n📞 {phone}" if phone else "")
+        self.messenger.send_message(row_lt['whatsapp_id'], text, reply_to_msg_id=msg_id)
+        self.logger.add_log(
+            sender_id="bot",
+            receiver_id="bot",
+            message_id=msg_id,
+            action_type="question limit reached",
+            details={"reason": reason, "org_id": row_lt.get("org_id")},
+            timestamp=datetime.now(),
+        )
+
     def handle_response_user(self, msg_object, row_lt):
         # data is a dictionary that contains from_number, msg_id, msg_object, user_type
         if self.check_expiration(row_lt):
@@ -947,6 +993,18 @@ class WhatsappResponder(BaseResponder):
             return
         
         msg_text = None
+
+        is_question = msg_type in ("text", "audio") or (
+            msg_type == "interactive"
+            and msg_object["interactive"]["type"] == "list_reply"
+            and msg_object["interactive"]["list_reply"]["id"][:5] == "QUEST"
+        )
+        if is_question and self.over_daily_question_limit(row_lt):
+            self.send_limit_message(row_lt, msg_id, "daily_limit")
+            return
+        if msg_type == "text" and len(msg_object["text"].get("body") or "") > self.max_question_chars:
+            self.send_limit_message(row_lt, msg_id, "too_long")
+            return
 
         if msg_object.get("text") or (
             msg_object["type"] == "interactive"
@@ -981,7 +1039,7 @@ class WhatsappResponder(BaseResponder):
             utils.remove_extra_voice_files(audio_input_file, audio_output_file)
             self.messenger.download_audio(msg_object, audio_input_file)
             subprocess.call(
-                ["ffmpeg", "-i", audio_input_file, audio_input_file[:-3] + "wav"],
+                [utils.ffmpeg_exe(), "-i", audio_input_file, audio_input_file[:-3] + "wav"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -1183,11 +1241,10 @@ class WhatsappResponder(BaseResponder):
         try:
             patient_id = row_lt.get("patient_id", None)
             patient_id = f" {patient_id}" if patient_id is not None else ""
-            gender = row_lt.get('patient_gender', None)
-            gender = gender[0].upper() if gender is not None else "NA"
             surgery_date = row_lt.get("patient_surgery_date", None)
             surgery_date_str = f" *Surgery Date*: {surgery_date}" if surgery_date is not None else ""
-            patient_details = f"*Patient*:{patient_id} {row_lt['patient_name']} {row_lt['patient_age']}/{gender}{surgery_date_str}"
+            # MRD only: name, age and gender are not sent to doctors or stored with the poll.
+            patient_details = f"*Patient*:{patient_id}{surgery_date_str}"
         except:
             patient_details= ""
 

@@ -19,7 +19,7 @@ sys.path.append("src")
 from app_logging import LoggingDatabase
 from responder import WhatsappResponder
 from medics_integration import OnboardMedics
-from az_table import PatientTable
+from az_table import PatientTable, without_fields, NOT_LOGGED_FIELDS
 from utils import is_older_than_n_minutes
 
 with open("config.yaml") as file:
@@ -273,7 +273,7 @@ def long_term():
         receiver_id="Bot",
         message_id=None,
         action_type="Medics",
-        details=data,
+        details=[without_fields(row, NOT_LOGGED_FIELDS) for row in data],
         timestamp=datetime.now()
     )
     outcome = {"inserted": 0, "already_exists": 0, "quarantined": 0, "failed": 0}
@@ -413,5 +413,10 @@ def process_queue():
 Thread(target=process_queue).start()
 
 if __name__ == "__main__":
+    # Quadra P1-10: the Flask development server must never handle real patient data.
+    # Production runs through start.sh (gunicorn) on Azure App Service.
+    if os.environ.get("WEBSITE_SITE_NAME") or os.environ.get("ALLOW_DEV_SERVER") != "1":
+        sys.exit("Refusing to start the Flask development server. Production uses start.sh (gunicorn). "
+                 "For local testing with TEST credentials only, set ALLOW_DEV_SERVER=1.")
     if config["CHAT_APPLICATION"] == "whatsapp":
         app.run()

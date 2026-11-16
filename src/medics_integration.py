@@ -71,9 +71,8 @@ class OnboardMedics:
 
         patient_meta = {
             'patient_id': data['MRD'],
-            'patient_name': data['name'],
-            'patient_gender': data['gender'],
-            'patient_age': str(data['age']),
+            # Name and age are not stored (Sankara policy). Gender is kept only for answer grammar.
+            'patient_gender': data.get('gender'),
             'patient_surgery_date': str(data['surgery_date']),
         }
 

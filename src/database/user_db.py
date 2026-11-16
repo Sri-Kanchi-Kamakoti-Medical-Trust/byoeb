@@ -1,4 +1,5 @@
 import os
+import json
 import datetime
 import pymongo
 import certifi
@@ -9,10 +10,24 @@ from database.base import BaseDB
 eight_hours = 1
 cache = TTLCache(maxsize=100, ttl=eight_hours)
 
+# Consent notice shown to patients (Quadra P1-3). Each version is kept in git
+# (data/consent_notices/<version>.json) and copied into the consent_notices
+# collection, and every consent record points at the version the patient saw.
+CONSENT_NOTICE_VERSION = "v1"
+
+
+def load_consent_notice(version=CONSENT_NOTICE_VERSION):
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    with open(os.path.join(repo_root, "data", "consent_notices", f"{version}.json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
 class UserDB(BaseDB):
     def __init__(self, config):
         super().__init__(config)
         self.collection = self.db[config['COSMOS_USER_COLLECTION']]
+        self.consent_notices = self.db["consent_notices"]
+        self._consent_notice = None
 
     def insert_row(self,
         user_id,
@@ -119,12 +134,32 @@ class UserDB(BaseDB):
             upsert=True
         )
 
+    def current_consent_notice(self):
+        """The notice version in force. Also stores a copy in the database once (never overwritten).
+
+        Returns None if the notice cannot be loaded, so onboarding is never blocked by it.
+        """
+        if self._consent_notice is None:
+            try:
+                notice = load_consent_notice()
+                self.consent_notices.update_one(
+                    {"version": notice["version"]},
+                    {"$setOnInsert": {**notice, "stored_at": datetime.datetime.now()}},
+                    upsert=True,
+                )
+                self._consent_notice = notice
+            except Exception as e:
+                print(f"Consent notice not loaded: {type(e).__name__}")
+                return None
+        return self._consent_notice
+
     def record_consent(self, user_id, given, message_id, notice_message_id, language):
         """Stores evidence of the patient's onboarding Yes/No as a consent record.
 
         Only adds fields to the existing user; nothing is removed or overwritten
         apart from a previous consent record for the same user.
         """
+        notice = self.current_consent_notice()
         self.collection.update_one(
             {'user_id': user_id},
             {'$set': {
@@ -133,6 +168,8 @@ class UserDB(BaseDB):
                 'consent_message_id': message_id,
                 'consent_notice_message_id': notice_message_id,
                 'consent_notice': 'catbot_onboarding_msg_utility',
+                'consent_notice_version': notice["version"] if notice else None,
+                'consent_notice_sha256': notice["sha256"] if notice else None,
                 'consent_language': language,
                 'consent_channel': 'whatsapp',
                 'consent_purpose': 'cataract_surgery_patient_support',

@@ -26,39 +26,24 @@ BYOeB (Build Your Own Expert Bot) is a platform designed to build expert-in-the-
 > sudo apt-get install build-essential libssl-dev ca-certificates libasound2 wget
 ```
 
-## For ngrok hosting
-> **Warning: local development only.** ngrok, `flask run` and `python3 app.py` must never be used
-> with real patient data or production credentials. Production runs on Azure App Service via
-> `start.sh` (gunicorn, one worker). Use a separate test WhatsApp number, test database and test
-> storage account for any local run.
+## Running the bot
+**Production** runs only on Azure App Service through `start.sh` (gunicorn, one worker).
+
+**Never** run the bot on a personal machine, through ngrok or any other tunnel, or with the Flask
+development server, using real patient data or production keys (Quadra P1-10). `python3 app.py`
+refuses to start unless `ALLOW_DEV_SERVER=1` is set, and must then only be used with a separate test
+WhatsApp number, test database and test storage account.
 
 ```console
-> curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | \
-  sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && \
-  echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | \
-  sudo tee /etc/apt/sources.list.d/ngrok.list && \
-  sudo apt update && sudo apt install ngrok
+> source keys.env        # TEST credentials only
+> ALLOW_DEV_SERVER=1 python3 app.py
 ```
-Create a ngrok account online at https://ngrok.com/, and then add authication token using cmd line.
-```console
-> ngrok config add-authtoken <insert token here>
-> ngrok http 5000
-```
-
-## Start the bot
-Fill `keys.env` file with the required keys and credentials (of Azure Open AI, Azure AI Translator, Azure Storage, WhatsApp, etc.).
-
-```console
-> source keys.env
-> flask run
-```
-If `flask run` is giving error, instead use `python3 app.py`.
 
 # Explanation of Python scripts
 
 ### Structure
 - `app.py`: It has the base code to run flask. All requests are directed from here.
-- `start.sh`: Start up script for Azure related services. Installs required linux libraries and syncs knowledge base with past updates.
+- `start.sh`: Start up script for Azure. Starts gunicorn with one worker; installs nothing at runtime (ffmpeg comes from the `imageio-ffmpeg` package).
 - `src/response`: It contains the Responder class that handles the response of an incoming message. The class should be derived from BaseResponder class.
 - `src/messenger`: It contains the Messenger class that has the functionality to send different types of messages (message, poll, audio, etc). Similar to Responder, WhatsappMessenger class is derived from BaseMessenger.
 

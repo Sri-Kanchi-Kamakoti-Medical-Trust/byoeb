@@ -3,6 +3,7 @@ import sys
 local_path = os.path.join(os.environ['APP_PATH'], 'src')
 sys.path.append(local_path)
 from azure_language_tools import translator
+from utils import ffmpeg_exe
 import json
 import subprocess
 import yaml
@@ -36,7 +37,7 @@ audio_path = os.path.join(os.environ["APP_PATH"], os.environ["DATA_PATH"], audio
 azure_translate.text_to_speech(final_message, "en-IN", audio_path)
 
 subprocess.run(
-    ["ffmpeg", "-y", "-i", audio_path, "-codec:a", "aac", audio_path[:-3] + "aac"],
+    [ffmpeg_exe(), "-y", "-i", audio_path, "-codec:a", "aac", audio_path[:-3] + "aac"],
     stdout=subprocess.DEVNULL,
     stderr=subprocess.DEVNULL,
 )
@@ -58,7 +59,7 @@ for language in languages:
     azure_translate.text_to_speech(final_message, language + "-IN", audio_path)
 
     subprocess.run(
-        ["ffmpeg", "-y", "-i", audio_path, "-codec:a", "aac", audio_path[:-3] + "aac"],
+        [ffmpeg_exe(), "-y", "-i", audio_path, "-codec:a", "aac", audio_path[:-3] + "aac"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         )
