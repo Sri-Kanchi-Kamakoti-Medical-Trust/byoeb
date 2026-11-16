@@ -1,6 +1,7 @@
 # Quadra P1-9: code quality and dependency checks.
 # - CodeQL scans the Python code on every push and pull request.
 # - Pull requests that add a dependency with a HIGH or CRITICAL vulnerability fail.
+# - gitleaks scans the whole git history for committed secrets (fails the run).
 # - pip-audit lists known vulnerabilities in requirements.txt (report only until the
 #   major upgrades are done; see the job summary).
 name: Security checks
@@ -38,6 +39,17 @@ jobs:
       - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan the full git history for secrets (gitleaks, Quadra P0-4)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks git . --redact --no-banner
 
   pip-audit:
     runs-on: ubuntu-latest
