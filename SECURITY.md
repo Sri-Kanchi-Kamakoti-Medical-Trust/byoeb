@@ -1,41 +1,37 @@
-<!-- BEGIN MICROSOFT SECURITY.MD V0.0.9 BLOCK -->
+# Security Policy – CataractBot (Sankara Eye Hospital)
 
-## Security
+CataractBot is operated by Sankara Eye Hospital and handles patient health information.
+Security of this deployment is owned by Sankara, not by Microsoft or the upstream BYOeB project.
 
-Microsoft takes the security of our software products and services seriously, which includes all source code repositories managed through our GitHub organizations, which include [Microsoft](https://github.com/Microsoft), [Azure](https://github.com/Azure), [DotNet](https://github.com/dotnet), [AspNet](https://github.com/aspnet) and [Xamarin](https://github.com/xamarin).
+## Reporting a vulnerability
 
-If you believe you have found a security vulnerability in any Microsoft-owned repository that meets [Microsoft's definition of a security vulnerability](https://aka.ms/security.md/definition), please report it to us as described below.
+**Please do not report security problems through public GitHub issues, pull requests or discussions.**
 
-## Reporting Security Issues
+Email **saravanan@sankaraeye.com** (Saravanan D, Chief Technology Officer, Information Systems)
+with the subject line `CataractBot security report`.
 
-**Please do not report security vulnerabilities through public GitHub issues.**
+Please include, as far as you can:
 
-Instead, please report them to the Microsoft Security Response Center (MSRC) at [https://msrc.microsoft.com/create-report](https://aka.ms/security.md/msrc/create-report).
+* what the problem is and what an attacker could do with it
+* the affected endpoint, file or commit
+* steps to reproduce (please use test data only; never access or copy real patient data)
 
-If you prefer to submit without logging in, send email to [secure@microsoft.com](mailto:secure@microsoft.com).  If possible, encrypt your message with our PGP key; please download it from the [Microsoft Security Response Center PGP Key page](https://aka.ms/security.md/msrc/pgp).
+We acknowledge reports within **3 working days** and keep the reporter informed until the issue is fixed.
+Please give us a reasonable time to fix the problem before telling anyone else about it.
 
-You should receive a response within 24 hours. If for some reason you do not, please follow up via email to ensure we received your original message. Additional information can be found at [microsoft.com/msrc](https://www.microsoft.com/msrc). 
+## Personal data breaches
 
-Please include the requested information listed below (as much as you can provide) to help us better understand the nature and scope of the possible issue:
+If a report shows that patient data may have been exposed, the security owner above starts the
+incident-response plan, including notifying the Data Protection Board of India and the affected
+patients as required by the Digital Personal Data Protection Act, 2023.
 
-  * Type of issue (e.g. buffer overflow, SQL injection, cross-site scripting, etc.)
-  * Full paths of source file(s) related to the manifestation of the issue
-  * The location of the affected source code (tag/branch/commit or direct URL)
-  * Any special configuration required to reproduce the issue
-  * Step-by-step instructions to reproduce the issue
-  * Proof-of-concept or exploit code (if possible)
-  * Impact of the issue, including how an attacker might exploit the issue
+## Scope
 
-This information will help us triage your report more quickly.
+* The CataractBot web app, its scheduled jobs and its Azure resources (resource group `Cataract_Bot`)
+* This repository
 
-If you are reporting for a bug bounty, more complete reports can contribute to a higher bounty award. Please visit our [Microsoft Bug Bounty Program](https://aka.ms/security.md/msrc/bounty) page for more details about our active programs.
+## Credential rotation
 
-## Preferred Languages
-
-We prefer all communications to be in English.
-
-## Policy
-
-Microsoft follows the principle of [Coordinated Vulnerability Disclosure](https://aka.ms/security.md/cvd).
-
-<!-- END MICROSOFT SECURITY.MD BLOCK -->
+Keys and passwords are rotated every quarter: **1 February, 1 May, 1 August and 1 November**.
+Secrets are kept only in Azure Key Vault `catbot-kv`; never commit them to this repository
+(every push is scanned for secrets).
