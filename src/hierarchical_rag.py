@@ -63,6 +63,7 @@ def hierarchical_rag_generate(prompt, schema=None):
             model=model,
             messages=prompt,
             temperature=0,
+            extra_body={"store": False},  # Quadra P2-2: OpenAI keeps no copy of the conversation
         )
         record_token_usage(response, "hierarchical_rag")
         response_text = response.choices[0].message.content.strip()
@@ -72,7 +73,8 @@ def hierarchical_rag_generate(prompt, schema=None):
         model=model,
         messages=prompt,
         temperature=0,
-        response_format= { "type": "json_schema", "json_schema": schema }
+        response_format= { "type": "json_schema", "json_schema": schema },
+        extra_body={"store": False},
     )
     record_token_usage(response, "hierarchical_rag")
     response_text = response.choices[0].message.content.strip()

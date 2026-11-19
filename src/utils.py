@@ -90,6 +90,8 @@ def get_llm_response(prompt, schema=None):
                 messages=prompt,
                 temperature=0,
                 response_format=response_format,
+                # Quadra P2-2: OpenAI must not keep the conversation (no stored completions).
+                extra_body={"store": False},
             )
             break
         except Exception as e:
